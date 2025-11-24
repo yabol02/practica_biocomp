@@ -1,0 +1,7 @@
+[project]
+name = "practica-biocomp"
+version = "0.1.0"
+description = "Entrega de la práctica de la asignatura Computación Evolutiva y Bioinspirada del Máster en Aprendizaje Automático y Datos Masivos"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
