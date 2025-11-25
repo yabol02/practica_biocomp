@@ -120,10 +120,11 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 <a id="autores"></a>
 ## 🫂 Autores
 
-<!-- Para ver las fotos de GitHub hay que hacer el repo público -->
 <a href="https://github.com/yabol02/practica_biocomp/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=yabol02/practica_biocomp" />
 </a>
+
+###### Made with [contrib.rocks](https://contrib.rocks).
 
 - [Aguirregabiria Herrero, Rodrigo](https://github.com/raguirregabiria)
 - [Boleas Francisco, Yago](https://github.com/yabol02)
@@ -134,12 +135,10 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 <a id="licencia"></a>
 ## 🗝️ Licencia
 
-Distribuido bajo la licenia MIT. Ve a [`LICENSE`](LICENSE) para mayor información.
+Distribuido bajo la licencia MIT. Ve a [`LICENSE`](LICENSE) para mayor información.
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
 <a href="https://www.etsisi.upm.es/">
   <img src="https://www.upm.es/gsfs/SFS11386"></img>
 </a>
-
-<!-- TODO: Arreglar los links de Roadmap, de Ejecución del código, de Autores y de Licencia -->
