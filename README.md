@@ -1,2 +1,138 @@
-# practica_biocomp
-Entrega de la práctica de la asignatura Computación Evolutiva y Bioinspirada del Máster en Aprendizaje Automático y Datos Masivos
+<a name="readme-top"></a>
+<div align="center">
+  <h1 align="center">🧬 Práctica de Computación Evolutiva y Bioinspirada</h1>
+
+  <p align="center">
+    Implementación de Algoritmos Genéticos y Estrategias Evolutivas 
+    <br />
+    <strong>Máster en Aprendizaje Automático y Datos Masivos</strong>
+    <br />
+    <br />
+    <a href="#ejecución-del-código">Ejecución del código</a>
+    ·
+    <a href="#roadmap">Ver Roadmap</a>
+    ·
+    <a href="https://github.com/yabol02/practica_biocomp/issues">Reportar Bug</a>
+  </p>
+</div>
+
+<div align="center">
+
+[![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Dependency Manager](https://img.shields.io/badge/uv-astral-purple?logo=python&logoColor=white)](https://docs.astral.sh/uv/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-En_Desarrollo-orange)]()
+
+</div>
+
+<p align="center">
+  <a href="#requisitos-previos">Requisitos</a> •
+  <a href="#instalación">Instalación</a> •
+  <a href="#roadmap">Roadmap</a> •
+  <a href="#-estructura-del-proyecto">Estructura</a> •
+  <a href="#ejecución-del-código">Uso</a> •
+  <a href="#autores">Autores</a> •
+  <a href="#licencia">Licencia</a>
+</p>
+
+---
+
+## ℹ️ Sobre el Proyecto
+
+Este repositorio contiene la entrega práctica de la asignatura **Computación Evolutiva y Bioinspirada**. El objetivo principal es el desarrollo, análisis y comparativa de diferentes algoritmos bioinspirados aplicados a problemas de optimización mono-objetivo y multi-objetivo.
+
+El proyecto abarca implementaciones desde cero (from scratch) de:
+* **Algoritmos Genéticos (GA):** Selección, cruce y mutación.
+* **Optimización Mono-objetivo:** Función de Himmelblau y Problema del Viajante (TSP).
+* **Optimización Multi-objetivo (MOEA):** Implementación de frentes de Pareto, métricas de diversidad y convergencia (ZDT3, MW7, MW14).
+
+<p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
+
+## 🔥 Empezando
+
+Sigue estos pasos para levantar el entorno de desarrollo localmente.
+
+### Requisitos previos
+
+Este proyecto ha sido desarrollado usando **Python (>3.11)**.
+
+> [!IMPORTANT]
+> Para la gestión de dependencias y entornos virtuales se utiliza **[uv](https://docs.astral.sh/uv/)**, un gestor de paquetes extremadamente rápido escrito en Rust.
+> 
+> Si no dispones de `uv`, instálalo ejecutando:
+> ```bash
+> # En macOS/Linux
+> curl -LsSf https://astral.sh/uv/install.sh | sh
+>
+> # En Windows
+> powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+> ```
+
+### Instalación
+
+Una vez instalado `uv`, la configuración es automática. Desde la raíz del repositorio:
+
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/yabol02/practica_biocomp.git
+   ```
+
+2. Sincroniza el entorno:
+    ```bash
+    uv sync
+    ```
+    Este comando creará el virtual environment (`.venv`) e instalará todas las librerías exactas definidas en el `uv.lock`.
+
+
+<p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
+
+## 🪴 Estructura del proyecto
+
+> [!WARNING]
+> Sección en desarrollo
+
+## 🐍 Ejecución del código
+
+> [!WARNING]
+> Sección en desarrollo
+
+## 🪙 Roadmap
+
+- [ ] Creación de la población inicial
+- [ ] Ordenación
+- [ ] Selección
+- [ ] Mutación
+- [ ] Crossover
+- [ ] Evolve
+- [ ] TSP
+- [ ] Tres tipos de mutaciones
+- [ ] Optimización final de Himmelblau
+- [ ] Optimización final de Himmelblau con onlyone::True
+- [ ] MO: Optimización de ZDT3
+- [ ] MO: Optimización de MW7
+- [ ] MO: Optimización de MW14
+- [ ] MO: Optimización de TSP MO
+- [ ] MO: Comparativas con NSGA
+- [ ] MO: Implementación y cálculo de métricas
+- [ ] Final: presentación
+
+<p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
+
+## 🫂 Autores
+
+<!-- Para ver las fotos de GitHub hay que hacer el repo público -->
+<a href="https://github.com/othneildrew/Best-README-Template/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=yabol02/practica_biocomp" alt="Contribuyentes" />
+</a>
+
+- [Aguirregabiria Herrero, Rodrigo](https://github.com/raguirregabiria)
+- [Boleas Francisco, Yago](https://github.com/yabol02)
+- [Estoquera Núñez, Adrian](https://github.com/aestoquera)
+
+<p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
+
+## 🗝️ Licencia
+
+Distribuido bajo la licenia MIT. Ve a [`LICENSE`](LICENSE) para mayor información.
+
+<p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
