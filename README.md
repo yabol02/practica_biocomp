@@ -1,42 +1,31 @@
-<a name="readme-top"></a>
+<a id="readme-top"></a>
 <div align="center">
   <h1 align="center">🧬 Práctica de Computación Evolutiva y Bioinspirada</h1>
 
+[![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Dependency Manager](https://img.shields.io/badge/uv-astral-purple?logo=python&logoColor=white)](https://docs.astral.sh/uv/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-En_Desarrollo-orange)]()
   <p align="center">
     Implementación de Algoritmos Genéticos y Estrategias Evolutivas 
     <br />
     <strong>Máster en Aprendizaje Automático y Datos Masivos</strong>
     <br />
     <br />
-    <a href="#ejecución-del-código">Ejecución del código</a>
-    ·
-    <a href="#roadmap">Ver Roadmap</a>
-    ·
-    <a href="https://github.com/yabol02/practica_biocomp/issues">Reportar Bug</a>
+    <a href="#requisitos-previos">Requisitos</a> •
+    <a href="#instalación">Instalación</a> •
+    <a href="#metodologia-y-experimentos">Experimentación</a> •
+    <a href="#estructura-del-proyecto">Estructura</a> •
+    <a href="#ejecucion-del-codigo">Uso</a> •
+    <a href="#roadmap">Roadmap</a> •
+    <a href="#autores">Autores</a> •
+    <a href="#licencia">Licencia</a>
   </p>
 </div>
 
-<div align="center">
-
-[![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![Dependency Manager](https://img.shields.io/badge/uv-astral-purple?logo=python&logoColor=white)](https://docs.astral.sh/uv/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-En_Desarrollo-orange)]()
-
-</div>
-
-<p align="center">
-  <a href="#requisitos-previos">Requisitos</a> •
-  <a href="#instalación">Instalación</a> •
-  <a href="#roadmap">Roadmap</a> •
-  <a href="#-estructura-del-proyecto">Estructura</a> •
-  <a href="#ejecución-del-código">Uso</a> •
-  <a href="#autores">Autores</a> •
-  <a href="#licencia">Licencia</a>
-</p>
-
 ---
 
+<a id="sobre-el-proyecto"></a>
 ## ℹ️ Sobre el Proyecto
 
 Este repositorio contiene la entrega práctica de la asignatura **Computación Evolutiva y Bioinspirada**. El objetivo principal es el desarrollo, análisis y comparativa de diferentes algoritmos bioinspirados aplicados a problemas de optimización mono-objetivo y multi-objetivo.
@@ -48,6 +37,7 @@ El proyecto abarca implementaciones desde cero (from scratch) de:
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
+<a id="empezando"></a>
 ## 🔥 Empezando
 
 Sigue estos pasos para levantar el entorno de desarrollo localmente.
@@ -86,16 +76,25 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
+<a id="metodologia-y-experimentos"></a>
+## 🧪 Metodología y experimentos
+
+> [!WARNING]
+> Sección en desarrollo
+
+<a id="estructura-del-proyecto"></a>
 ## 🪴 Estructura del proyecto
 
 > [!WARNING]
 > Sección en desarrollo
 
+<a id="ejecucion-del-codigo"></a>
 ## 🐍 Ejecución del código
 
 > [!WARNING]
 > Sección en desarrollo
 
+<a id="roadmap"></a>
 ## 🪙 Roadmap
 
 - [ ] Creación de la población inicial
@@ -118,11 +117,12 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
+<a id="autores"></a>
 ## 🫂 Autores
 
 <!-- Para ver las fotos de GitHub hay que hacer el repo público -->
-<a href="https://github.com/othneildrew/Best-README-Template/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=yabol02/practica_biocomp" alt="Contribuyentes" />
+<a href="https://github.com/yabol02/practica_biocomp/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=yabol02/practica_biocomp" />
 </a>
 
 - [Aguirregabiria Herrero, Rodrigo](https://github.com/raguirregabiria)
@@ -131,8 +131,15 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
+<a id="licencia"></a>
 ## 🗝️ Licencia
 
 Distribuido bajo la licenia MIT. Ve a [`LICENSE`](LICENSE) para mayor información.
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
+
+<a href="https://www.etsisi.upm.es/">
+  <img src="https://www.upm.es/gsfs/SFS11386"></img>
+</a>
+
+<!-- TODO: Arreglar los links de Roadmap, de Ejecución del código, de Autores y de Licencia -->
