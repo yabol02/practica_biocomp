@@ -2,7 +2,6 @@
 Individual class for genetic algorithms.
 """
 from typing import List, Optional
-import random
 
 
 class Individual:
@@ -14,7 +13,7 @@ class Individual:
         fitness_value: Fitness value of the individual
     """
     
-    def __init__(self, genotype: Optional[List] = None, random_size: Optional[int] = None):
+    def __init__(self, genotype: Optional[List] = None):
         """
         Constructor for the individual.
         
@@ -24,9 +23,6 @@ class Individual:
         """
         if genotype is not None:
             self.genotype = genotype
-        elif random_size is not None:
-            # Generate random genotype
-            self.genotype = [random.random() for _ in range(random_size)]
         else:
             self.genotype = []
         

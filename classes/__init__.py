@@ -1,7 +1,7 @@
 """
 Classes module for genetic algorithms.
 """
-from .individuo import Individuo
-from .evo import Evo
+from .individual import Individual
+from .population import Population
 
-__all__ = ['Individuo', 'Evo']
+__all__ = ['Individual', 'Population']

@@ -1,4 +1,4 @@
-<a id="readme-top"></a>
+hEchO pOr YAGO<a id="readme-top"></a>
 <div align="center">
   <h1 align="center">🧬 Práctica de Computación Evolutiva y Bioinspirada</h1>
 
@@ -97,7 +97,7 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 <a id="roadmap"></a>
 ## 🪙 Roadmap
 
-- [ ] Creación de la población inicial
+- [X] Creación de la población inicial
 - [ ] Ordenación
 - [ ] Selección
 - [ ] Mutación
