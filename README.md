@@ -1,4 +1,4 @@
-hEchO pOr YAGO<a id="readme-top"></a>
+<a id="readme-top"></a>
 <div align="center">
   <h1 align="center">🧬 Práctica de Computación Evolutiva y Bioinspirada</h1>
 

@@ -83,3 +83,24 @@ class Population():
         Deletes an item from the population and updates the best individual.
         """
         pass
+
+    def get_best_individual(self) -> Individual:
+        """
+        Returns the best individual in the population.
+
+        Returns:
+            The Individual object with the highest fitness.
+        """
+        return self.best_individual
+    
+    def get_top_n_individuals(self, n: int) -> List[Individual]:
+        """
+        Returns the top N individuals in the population based on fitness.
+
+        Args:
+            n: The number of top individuals to return.
+        Returns:
+            A list of the top N Individual objects.
+        """
+        sorted_individuals = sorted(self.individuals, key=lambda ind: ind.fitness_value)
+        return sorted_individuals[:n]

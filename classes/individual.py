@@ -30,7 +30,7 @@ class Individual:
     
     def __repr__(self) -> str:
         """String representation of the individual."""
-        return f"Individuo(genotype={self.genotype}, fitness={self.fitness_value:.4f})"
+        return f"Individuo(fitness={self.fitness_value:.4f}, genotype={self.genotype})"
     
     def __str__(self) -> str:
         """Human-readable string of the individual."""
