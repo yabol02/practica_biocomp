@@ -202,3 +202,48 @@ class MultiObjectiveProblem(Problem):
             pareto_front=self.pareto_front,
             metrics={},
         )
+
+
+class HimmelblauProblem(SingleObjectiveProblem):
+    """Himmelblau function optimization problem."""
+
+    def __init__(self, config: ProblemConfig):
+        super().__init__(config)
+        self.bounds = [(-5.0, 5.0), (-5.0, 5.0)]
+
+    def _fitness_function(self, solution: List) -> float:
+        """
+        Himmelblau function: f(x,y) = (x²+y-11)² + (x+y²-7)².
+
+        :param solution: [x, y] coordinates
+        :type solution: List
+        :return: Function value
+        :rtype: float
+        """
+        x, y = solution[0], solution[1]
+        return (x**2 + y - 11) ** 2 + (x + y**2 - 7) ** 2
+
+    def get_bounds(self) -> List[Tuple[float, float]]:
+        """
+        Get Himmelblau bounds.
+
+        :return: [(-5, 5), (-5, 5)]
+        :rtype: List[Tuple[float, float]]
+        """
+        return self.bounds
+
+    def to_pyswarms_format(self) -> Tuple[Callable, List[float], List[float]]:
+        """
+        Convert to pyswarms-compatible format.
+
+        :return: (fitness_func, lower_bounds, upper_bounds)
+        :rtype: Tuple[Callable, List[float], List[float]]
+        """
+
+        def fitness_wrapper(X):
+            """Wrapper for vectorized evaluation."""
+            return np.array([self._fitness_function(x) for x in X])
+
+        lower = [b[0] for b in self.bounds]
+        upper = [b[1] for b in self.bounds]
+        return fitness_wrapper, lower, upper
