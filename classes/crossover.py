@@ -1,14 +1,23 @@
 from abc import ABC, abstractmethod
-import random
+from typing import List, Tuple
 
-from .individual import Individual
+from .individual import Individual, RealIndividual
+from .population import Population
+
 
 class Crossover(ABC):
+    """Abstract base class for crossover operators."""
+
     @abstractmethod
-    def cross(self, population):      
+    def cross(self, population: Population) -> Population:
         """
-        Perform crossover on the given population.
-        """  
+        Perform crossover on population.
+
+        :param population: Population to apply crossover
+        :type population: Population
+        :return: New population after crossover
+        :rtype: Population
+        """
         pass
 
 class BasicTSPCrossover(Crossover):
