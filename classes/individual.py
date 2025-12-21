@@ -37,3 +37,24 @@ class Individual(ABC):
 
     def __str__(self) -> str:
         return f"Individual with fitness: {self.fitness_value:.4f}"
+
+
+class RealIndividual(Individual):
+    """Individual with real-valued genotype for continuous optimization."""
+
+    def __init__(
+        self,
+        genotype: Optional[List[float]] = None,
+        bounds: List[Tuple[float, float]] = None,
+    ):
+        """
+        Initialize real-valued individual.
+
+        :param genotype: Real-valued genes
+        :type genotype: Optional[List[float]]
+        :param bounds: Min/max bounds for each gene [(min, max), ...]
+        :type bounds: List[Tuple[float, float]]
+        """
+        super().__init__(genotype)
+        if genotype is None and bounds is not None:
+            self.genotype = [random.uniform(low, high) for low, high in bounds]
