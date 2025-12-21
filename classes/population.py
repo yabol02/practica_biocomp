@@ -1,106 +1,101 @@
 """
 Population class for genetic algorithms.
 """
-from typing import Callable, List, Optional
+
+from typing import Any, Callable, List, Optional
+
 from .individual import Individual
 
 
-class Population():
-    """
-    Represents a population of individuals in a genetic algorithm.
-    Inherits from list to hold Individual objects.
-    
-    Attributes:
-        best_individual: The individual with the highest fitness in the population.
-    """
+class Population:
+    """Represents a population of individuals."""
 
-    def __init__(self, individuals: List[Individual] = None, quality_function: Optional[Callable] = None, get_min = True):
+    def __init__(
+        self, individuals: Optional[List[Individual]] = None, minimize: bool = True
+    ):
         """
-        Constructor for the Population class.
+        Initialize population.
 
-        Args:
-            individuals: A list of Individual objects to initialize the population.
-                         If None, an empty population is created.
+        :param individuals: Initial list of individuals
+        :type individuals: Optional[List[Individual]]
+        :param minimize: True to minimize fitness, False to maximize
+        :type minimize: bool
         """
-        self.quality_function = quality_function
-        self.counter_quality = 0
-        self.individuals = individuals
-        self.get_min = get_min
-        self.update_all_qualities()
+        self.individuals: List[Individual] = (
+            individuals if individuals is not None else []
+        )
+        self.minimize: bool = minimize
+        self._best_individual: Optional[Individual] = None
 
-    def update_all_qualities(self):
-        [self.update_quality(i) for i in self.individuals]
+    def evaluate_population(self, fitness_function: Callable[[Any], float]) -> None:
+        """
+        Evaluate all unevaluated individuals.
 
+        :param fitness_function: Function mapping genotype to fitness
+        :type fitness_function: Callable[[Any], float]
+        """
+        for ind in self.individuals:
+            if not ind.is_evaluated:
+                ind.fitness = fitness_function(ind.genotype)
+        self._best_individual = None
 
-    def update_quality(self, individual) -> None:
+    @property
+    def best_individual(self) -> Individual:
         """
-        Calculates the firnss pf and individual
-        """
+        Get best individual (lazy evaluation).
 
-        individual.fitness_value = self.quality_function(individual.genotype)
-        self.counter_quality += 1
+        :return: Best individual in population
+        :rtype: Individual
+        :raises ValueError: If population is empty
+        """
+        if not self.individuals:
+            raise ValueError("Population is empty")
 
+        if self._best_individual is None:
+            self._best_individual = min(
+                self.individuals,
+                key=lambda ind: ind.fitness if self.minimize else -ind.fitness,
+            )
+        return self._best_individual
 
-    def _update_best_individual(self) -> None:
+    def add(self, individual: Individual) -> None:
         """
-        Updates the best individual in the population based on fitness.
-        This method should be called whenever the population or individual fitnesses change.
-        """
-        if self.get_min:
-            self.best_individual = min(self.individuals, key=lambda ind: ind.fitness_value)
-        else:
-            self.best_individual = min(self.individuals, key=lambda ind: ind.fitness_value)
+        Add individual to population.
 
-    def append(self, individual: Individual) -> None:
+        :param individual: Individual to add
+        :type individual: Individual
         """
-        Appends an individual to the population and updates the best individual.
+        self.individuals.append(individual)
+        self._best_individual = None
 
-        Args:
-            individual: The Individual object to append.
+    def extend(self, new_individuals: List[Individual]) -> None:
         """
-        super().append(individual)
-        self._update_best_individual()
+        Add multiple individuals to population.
 
-    def extend(self, individuals: List[Individual]) -> None:
+        :param new_individuals: Individuals to add
+        :type new_individuals: List[Individual]
         """
-        Extends the population with a list of individuals and updates the best individual.
+        self.individuals.extend(new_individuals)
+        self._best_individual = None
 
-        Args:
-            individuals: A list of Individual objects to extend the population with.
+    def get_top_n(self, n: int) -> List[Individual]:
         """
-        super().extend(individuals)
-        self._update_best_individual()
+        Get top N individuals sorted by fitness.
 
-    def __setitem__(self, key, value):
+        :param n: Number of top individuals
+        :type n: int
+        :return: Top N individuals
+        :rtype: List[Individual]
         """
-        Sets an item in the population and updates the best individual.
-        """
-        super().__setitem__(key, value)
-        self._update_best_individual()
+        return sorted(
+            self.individuals, key=lambda ind: ind.fitness, reverse=not self.minimize
+        )[:n]
 
-    def __delitem__(self, key):
-        """
-        Deletes an item from the population and updates the best individual.
-        """
-        pass
+    def __len__(self) -> int:
+        return len(self.individuals)
 
-    def get_best_individual(self) -> Individual:
-        """
-        Returns the best individual in the population.
+    def __getitem__(self, key: int) -> Individual:
+        return self.individuals[key]
 
-        Returns:
-            The Individual object with the highest fitness.
-        """
-        return self.best_individual
-    
-    def get_top_n_individuals(self, n: int) -> List[Individual]:
-        """
-        Returns the top N individuals in the population based on fitness.
-
-        Args:
-            n: The number of top individuals to return.
-        Returns:
-            A list of the top N Individual objects.
-        """
-        sorted_individuals = sorted(self.individuals, key=lambda ind: ind.fitness_value)
-        return sorted_individuals[:n]
+    def __repr__(self) -> str:
+        return f"Population(size={len(self)}, minimize={self.minimize})"

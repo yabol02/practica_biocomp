@@ -1,37 +1,39 @@
 """
 Individual class for genetic algorithms.
 """
-from typing import List, Optional
+
+import random
+from abc import ABC
+from typing import List, Optional, Tuple
 
 
-class Individual:
-    """
-    Represents an individual in a genetic algorithm.
-    
-    Attributes:
-        genotype: List representing the individual's genotype
-        fitness_value: Fitness value of the individual
-    """
-    
+class Individual(ABC):
+    """Represents an individual in an evolutionary algorithm."""
+
     def __init__(self, genotype: Optional[List] = None):
         """
-        Constructor for the individual.
-        
-        Args:
-            genotype: Initial genotype of the individual. If None, it's generated randomly.
-            random_size: Size of the random genotype to generate if genotype is None.
+        Initialize an individual.
+
+        :param genotype: Individual's genetic representation
+        :type genotype: Optional[List]
         """
-        if genotype is not None:
-            self.genotype = genotype
-        else:
-            self.genotype = []
-        
+        self.genotype: List = genotype if genotype is not None else []
         self.fitness_value: float = 0.0
-    
+        self.is_evaluated: bool = False
+
+    @property
+    def fitness(self) -> float:
+        """Get fitness value."""
+        return self.fitness_value
+
+    @fitness.setter
+    def fitness(self, value: float) -> None:
+        """Set fitness value and mark as evaluated."""
+        self.fitness_value = value
+        self.is_evaluated = True
+
     def __repr__(self) -> str:
-        """String representation of the individual."""
-        return f"Individuo(fitness={self.fitness_value:.4f}, genotype={self.genotype})"
-    
+        return f"Individual(fitness={self.fitness_value:.4f}, genotype={self.genotype})"
+
     def __str__(self) -> str:
-        """Human-readable string of the individual."""
         return f"Individual with fitness: {self.fitness_value:.4f}"
