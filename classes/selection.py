@@ -21,3 +21,37 @@ class Selection(ABC):
         :rtype: Population
         """
         pass
+
+
+class TournamentSelection(Selection):
+    """Tournament selection operator."""
+
+    def __init__(self, tournament_size: int = 3):
+        """
+        Initialize tournament selection.
+
+        :param tournament_size: Number of individuals per tournament
+        :type tournament_size: int
+        """
+        self.tournament_size = tournament_size
+
+    def select(self, population: Population, size: int) -> Population:
+        """
+        Select individuals via tournament.
+
+        :param population: Population to select from
+        :type population: Population
+        :param size: Number of individuals to select
+        :type size: int
+        :return: Selected population
+        :rtype: Population
+        """
+        selected = []
+        for _ in range(size):
+            tournament = random.sample(population.individuals, self.tournament_size)
+            winner = min(
+                tournament,
+                key=lambda ind: ind.fitness if population.minimize else -ind.fitness,
+            )
+            selected.append(RealIndividual(genotype=winner.genotype.copy()))
+        return Population(selected, minimize=population.minimize)
