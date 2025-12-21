@@ -4,4 +4,13 @@ version = "0.1.0"
 description = "Entrega de la práctica de la asignatura Computación Evolutiva y Bioinspirada del Máster en Aprendizaje Automático y Datos Masivos"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "aco>=0.2.3",
+    "ipykernel>=7.1.0",
+    "matplotlib>=3.10.8",
+    "numpy>=2.3.5",
+    "pandas>=2.3.3",
+    "pymoo>=0.6.1.6",
+    "pyswarms>=1.3.0",
+    "tqdm>=4.67.1",
+]
