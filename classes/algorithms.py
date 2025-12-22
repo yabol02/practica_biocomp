@@ -1,5 +1,4 @@
 from .crossover import Crossover
-from .individual import RealIndividual
 from .initialization import Initialization
 from .mutation import Mutation
 from .population import Population
