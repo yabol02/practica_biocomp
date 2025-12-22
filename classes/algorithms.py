@@ -4,6 +4,7 @@ from .initialization import Initialization
 from .mutation import Mutation
 from .population import Population
 from .problems import SingleObjectiveProblem
+from .replacement import Replacement
 from .results import SingleObjectiveResult
 from .selection import Selection
 
@@ -19,6 +20,7 @@ class GeneticAlgorithmSO:
         selection: Selection,
         crossover: Crossover,
         mutation: Mutation,
+        replacement: Replacement,
     ):
         """
         Initialize Genetic Algorithm.
@@ -35,6 +37,8 @@ class GeneticAlgorithmSO:
         :type crossover: Crossover
         :param mutation: Mutation operator
         :type mutation: Mutation
+        :param replacement: Replacement strategy
+        :type replacement: Replacement
         """
         self.problem = problem
         self.population_size = population_size
@@ -42,6 +46,7 @@ class GeneticAlgorithmSO:
         self.selection = selection
         self.crossover = crossover
         self.mutation = mutation
+        self.replacement = replacement
 
     def run(self) -> SingleObjectiveResult:
         """
@@ -85,6 +90,8 @@ class GeneticAlgorithmSO:
             if self.problem.reached_budget():
                 break
 
+            parents = population
+
             # Selection
             selected = self.selection.select(population, self.population_size)
 
@@ -95,7 +102,7 @@ class GeneticAlgorithmSO:
             offspring = self.mutation.mutate(offspring)
 
             # Replace population
-            population = offspring
+            population = self.replacement.replace(parents, offspring)
             generation += 1
 
         # Final evaluation
@@ -114,6 +121,7 @@ class GeneticAlgorithmSO:
             f"pop={self.population_size}, "
             f"sel={self.selection.__class__.__name__}, "
             f"cx={self.crossover.__class__.__name__}, "
-            f"mut={self.mutation.__class__.__name__}"
+            f"mut={self.mutation.__class__.__name__}, "
+            f"rep={self.replacement.__class__.__name__}"
             f")"
         )
