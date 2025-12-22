@@ -21,6 +21,9 @@ class Crossover(ABC):
         """
         pass
 
+    def __call__(self, **kwargs) -> Population:
+        return self.cross(**kwargs)
+
 
 class BasicTSPCrossover(Crossover):
     """Order crossover for TSP problems."""

@@ -28,10 +28,8 @@ class Initialization(ABC):
         """
         pass
 
-    def __call__(
-        self, population_size: int, bounds: List[Tuple[float, float]], problem: Problem
-    ) -> Population:
-        return self.initialize(population_size, bounds, problem)
+    def __call__(self, **kwargs) -> Population:
+        return self.initialize(**kwargs)
 
 
 class RandomInitialization(Initialization):

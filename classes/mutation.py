@@ -20,6 +20,9 @@ class Mutation(ABC):
         """
         pass
 
+    def __call__(self, **kwargs) -> Population:
+        return self.mutate(**kwargs)
+
 
 class UniformMutation(Mutation):
     """Uniform mutation for real-valued individuals."""
