@@ -64,9 +64,7 @@ class GeneticAlgorithmSO:
         #     ],
         #     minimize=True,
         # )
-        population = self.initialization.initialize(
-            self.population_size, bounds, self.problem
-        )
+        population: Population = self.initialization(self.population_size, bounds, self.problem)
 
         generation = 0
 
@@ -93,16 +91,16 @@ class GeneticAlgorithmSO:
             parents = population
 
             # Selection
-            selected = self.selection.select(population, self.population_size)
+            selected = self.selection(population, self.population_size)
 
             # Crossover
-            offspring = self.crossover.cross(selected)
+            offspring = self.crossover(selected)
 
             # Mutation
-            offspring = self.mutation.mutate(offspring)
+            offspring = self.mutation(offspring)
 
             # Replace population
-            population = self.replacement.replace(parents, offspring)
+            population = self.replacement(parents, offspring)
             generation += 1
 
         # Final evaluation

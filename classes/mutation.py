@@ -21,6 +21,7 @@ class Mutation(ABC):
         pass
 
     def __call__(self, **kwargs) -> Population:
+        """Alias for `mutate` method."""
         return self.mutate(**kwargs)
 
 

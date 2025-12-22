@@ -23,6 +23,7 @@ class Selection(ABC):
         pass
 
     def __call__(self, **kwargs) -> Population:
+        """Alias for `select` method."""
         return self.select(**kwargs)
 
 

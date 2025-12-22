@@ -29,6 +29,7 @@ class Initialization(ABC):
         pass
 
     def __call__(self, **kwargs) -> Population:
+        """Alias for `initialize` method."""
         return self.initialize(**kwargs)
 
 

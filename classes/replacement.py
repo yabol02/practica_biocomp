@@ -21,6 +21,7 @@ class Replacement(ABC):
         pass
 
     def __call__(self, **kwargs) -> Population:
+        """Alias for `replace` method."""
         return self.replace(**kwargs)
 
     def __str__(self) -> str:
