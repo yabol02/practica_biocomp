@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
+from pyswarms.single import GlobalBestPSO
 
 from .configurations import ProblemConfig
 from .results import (MultiObjectiveResult, OptimizationResult,
@@ -220,7 +221,12 @@ class HimmelblauProblem(SingleObjectiveProblem):
         :return: Function value
         :rtype: float
         """
-        x, y = solution[0], solution[1]
+        if isinstance(solution, np.ndarray) and solution.ndim == 2:
+            x = solution[:, 0]
+            y = solution[:, 1]
+            return (x**2 + y - 11) ** 2 + (x + y**2 - 7) ** 2
+
+        x, y = solution
         return (x**2 + y - 11) ** 2 + (x + y**2 - 7) ** 2
 
     def get_bounds(self) -> List[Tuple[float, float]]:
@@ -232,21 +238,45 @@ class HimmelblauProblem(SingleObjectiveProblem):
         """
         return self.bounds
 
-    def to_pyswarms_format(self) -> Tuple[Callable, List[float], List[float]]:
+    def get_pyswarms_result(
+        self, c1: float = 0.5, c2: float = 0.3, w: float = 0.9, pbar: bool = True
+    ) -> SingleObjectiveResult:
         """
-        Convert to pyswarms-compatible format.
+        Optimize using PySwarms GlobalBestPSO.
 
-        :return: (fitness_func, lower_bounds, upper_bounds)
-        :rtype: Tuple[Callable, List[float], List[float]]
+        :param c1: Cognitive coefficient
+        :type c1: float
+        c1 ⁠:⁠ float cognitive parameter
+        :param c2: Social coefficient
+        :type c2: float
+        :param w: Inertia coefficient
+        :type w: float
+        :return: Pyswarms optimization result
+        :rtype: SingleObjectiveResult
         """
-
-        def fitness_wrapper(X):
-            """Wrapper for vectorized evaluation."""
-            return np.array([self._fitness_function(x) for x in X])
 
         lower = [b[0] for b in self.bounds]
         upper = [b[1] for b in self.bounds]
-        return fitness_wrapper, lower, upper
+        bounds = (np.array(lower), np.array(upper))
+
+        optimizer = GlobalBestPSO(
+            n_particles=10,
+            dimensions=2,
+            options={"c1": c1, "c2": c2, "w": w},
+            bounds=bounds,
+            ftol=1e-5,
+            ftol_iter=100,
+        )
+
+        cost, pos = optimizer.optimize(self._fitness_function, iters=3500, verbose=pbar)
+
+        return SingleObjectiveResult(
+            problem_name="PySwarms" + self.__class__.__name__,
+            best_fitness=cost,
+            best_solution=pos,
+            evaluations_used=len(optimizer.cost_history),
+            history=optimizer.cost_history,
+        )
 
 
 class TSProblem(SingleObjectiveProblem):
@@ -293,7 +323,7 @@ class TSProblem(SingleObjectiveProblem):
         """
         if not np.all((0 <= solution) & (solution < self.n_cities)):
             raise ValueError("Solution contains invalid city index.")
-        
+
         if len(solution) != self.n_cities:
             raise ValueError("Solution must include all cities exactly once.")
 
