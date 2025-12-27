@@ -247,3 +247,81 @@ class HimmelblauProblem(SingleObjectiveProblem):
         lower = [b[0] for b in self.bounds]
         upper = [b[1] for b in self.bounds]
         return fitness_wrapper, lower, upper
+
+
+class TSProblem(SingleObjectiveProblem):
+    """Traveling Salesman Problem (TSP)."""
+
+    def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]]):
+        super().__init__(config)
+        self.cities = np.asarray(cities, dtype=np.float64)
+        self.n_cities = self.cities.shape[0]
+        self.dist_matrix = self._compute_distance_matrix()
+
+    def get_bounds(self) -> List[Tuple[float, float]]:
+        """
+        In TSP by permutation, bounds are not used the same way as in continuous problems,
+        but it is defined the range of valid indices for compatibility.
+        """
+        dist_matrix = self.dist_matrix.copy()
+        np.fill_diagonal(dist_matrix, np.inf)
+        min_dists = np.min(dist_matrix, axis=1)
+        max_dists = np.max(self.dist_matrix, axis=1)
+        list(zip(min_dists, max_dists))
+
+    def _compute_distance_matrix(self) -> np.ndarray:
+        """
+        Compute distance matrix between all the cities.
+
+        :return: Pairwise distance matrix between cities with shape (n_cities, n_cities)
+        :rtype: numpy.ndarray[np.float64]
+        """
+        coords = np.array(self.cities)
+        diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+        return np.sqrt(np.sum(diff**2, axis=-1))
+
+    def _sol_distance(self, solution: np.ndarray, closed: bool = False) -> float:
+        """
+        Compute the total length of a path defined by an ordered list of cities.
+
+        :param solution: Ordered array of city indices defining the path.
+        :type solution: numpy.ndarray
+        :param closed: Whether to close the path into a cycle.
+        :type closed: bool
+        :return: Total path length.
+        :rtype: float
+        """
+        if not np.all((0 <= solution) & (solution < self.n_cities)):
+            raise ValueError("Solution contains invalid city index.")
+        
+        if len(solution) != self.n_cities:
+            raise ValueError("Solution must include all cities exactly once.")
+
+        from_cities = solution[:-1]
+        to_cities = solution[1:]
+
+        total = self.dist_matrix[from_cities, to_cities].sum()
+
+        if closed:
+            total += self.dist_matrix[solution[-1], solution[0]]
+
+        return float(total)
+
+    def _fitness_function(
+        self, solution: np.ndarray, closed_path: bool = False
+    ) -> float:
+        """
+        Fitness function for TSP: inverse of path length.
+
+        :param solution: Ordered list of city indices defining the path.
+        :type solution: np.ndarray
+        :param closed_path: Whether the path is closed (cycle) or open.
+        :type closed_path: bool
+        :return: Fitness value (inverse of path length).
+        :rtype: float
+        """
+        # TODO: We are considering only open paths for now, rewrite super().evaluate to pass this parameter
+        return 1 / (1 + self._sol_distance(solution, closed=closed_path))
+
+    def to_aco_format(self):
+        raise NotImplementedError("ACO format conversion not implemented yet.")
