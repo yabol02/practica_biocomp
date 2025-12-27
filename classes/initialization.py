@@ -27,9 +27,9 @@ class Initialization(ABC):
         """
         pass
 
-    def __call__(self, **kwargs) -> Population:
+    def __call__(self, *args, **kwargs) -> Population:
         """Alias for `initialize` method."""
-        return self.initialize(**kwargs)
+        return self.initialize(*args, **kwargs)
 
 
 class RandomInitialization(Initialization):

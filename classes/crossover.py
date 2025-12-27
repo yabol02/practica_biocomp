@@ -21,9 +21,9 @@ class Crossover(ABC):
         """
         pass
 
-    def __call__(self, **kwargs) -> Population:
+    def __call__(self, *args, **kwargs) -> Population:
         """Alias for `cross` method."""
-        return self.cross(**kwargs)
+        return self.cross(*args, **kwargs)
 
 
 class BasicTSPCrossover(Crossover):

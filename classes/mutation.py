@@ -20,9 +20,9 @@ class Mutation(ABC):
         """
         pass
 
-    def __call__(self, **kwargs) -> Population:
+    def __call__(self, *args, **kwargs) -> Population:
         """Alias for `mutate` method."""
-        return self.mutate(**kwargs)
+        return self.mutate(*args, **kwargs)
 
 
 class UniformMutation(Mutation):
