@@ -54,6 +54,8 @@ class GeneticAlgorithmSO:
         :return: Optimization result
         :rtype: SingleObjectiveResult
         """
+        self.problem.config.initialize_random_state()
+
         # Initialize population (may use evaluation!)
         bounds = self.problem.get_bounds()
         # TODO: Add defaults args to the Initialization class and use here, e.g., if no initialization is provided, use something like:
@@ -63,7 +65,9 @@ class GeneticAlgorithmSO:
         #     ],
         #     minimize=True,
         # )
-        population: Population = self.initialization(self.population_size, bounds, self.problem)
+        population: Population = self.initialization(
+            self.population_size, bounds, self.problem
+        )
 
         generation = 0
 

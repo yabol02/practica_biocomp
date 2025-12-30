@@ -13,7 +13,8 @@ class ProblemConfig:
     seed: Optional[int] = None
     output_dir: str = "results"
 
-    def __post_init__(self):
+    def initialize_random_state(self):
+        """Initialize random seeds for reproducibility."""
         if self.seed is not None:
             random.seed(self.seed)
             np.random.seed(self.seed)
