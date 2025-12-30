@@ -2,7 +2,9 @@
 Population class for genetic algorithms.
 """
 
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Iterator, List, Optional, Type
+
+import numpy as np
 
 from .individual import Individual
 
@@ -26,6 +28,7 @@ class Population:
         )
         self.minimize: bool = minimize
         self._best_individual: Optional[Individual] = None
+        self._is_sorted: bool = False
 
     def evaluate_population(self, fitness_function: Callable[[Any], float]) -> None:
         """
@@ -34,10 +37,15 @@ class Population:
         :param fitness_function: Function mapping genotype to fitness
         :type fitness_function: Callable[[Any], float]
         """
-        for ind in self.individuals:
-            if not ind.is_evaluated:
-                ind.fitness = fitness_function(ind.genotype)
-        self._best_individual = None
+        unevaluated = [ind for ind in self.individuals if not ind.is_evaluated]
+
+        if not unevaluated:
+            return
+
+        for ind in unevaluated:
+            ind.fitness = fitness_function(ind.genotype)
+        self._best_individual = self.best_individual
+        self._is_sorted = False
 
     @property
     def best_individual(self) -> Individual:
@@ -57,6 +65,31 @@ class Population:
                 key=lambda ind: ind.fitness if self.minimize else -ind.fitness,
             )
         return self._best_individual
+
+    @property
+    def bounds(self) -> Optional[List]:
+        """
+        Get bounds of individuals in the population.
+
+        :return: Bounds of individuals or None if population is empty
+        :rtype: Optional[List]
+        """
+        if not self.individuals:
+            return None
+        return self.individuals[0].bounds
+
+    @property
+    def ind_class(self) -> Type[Individual]:
+        """
+        Get the class of individuals in this population.
+
+        :return: Class of individuals
+        :rtype: type
+        :raises ValueError: If population is empty
+        """
+        if not self.individuals:
+            raise ValueError("No se puede determinar la clase de una población vacía.")
+        return self.individuals[0].__class__
 
     def add(self, individual: Individual) -> None:
         """
@@ -91,6 +124,9 @@ class Population:
             self.individuals, key=lambda ind: ind.fitness, reverse=not self.minimize
         )[:n]
 
+    def __iter__(self) -> Iterator[Individual]:
+        return iter(self.individuals)
+
     def __len__(self) -> int:
         return len(self.individuals)
 
@@ -98,4 +134,7 @@ class Population:
         return self.individuals[key]
 
     def __repr__(self) -> str:
-        return f"Population(size={len(self)}, minimize={self.minimize})"
+        return (
+            f"Population(size={len(self)}, minimize={self.minimize}, "
+            f"best_fitness={self.best_individual.fitness if self._best_individual else 'Unevaluated'})"
+        )

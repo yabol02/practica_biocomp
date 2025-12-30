@@ -3,14 +3,16 @@ Individual class for genetic algorithms.
 """
 
 import random
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
+
+import numpy as np
 
 
 class Individual(ABC):
     """Represents an individual in an evolutionary algorithm."""
 
-    def __init__(self, genotype: Optional[List] = None):
+    def __init__(self, genotype: Optional[List] = None, bounds: Optional[List] = None):
         """
         Initialize an individual.
 
@@ -18,8 +20,10 @@ class Individual(ABC):
         :type genotype: Optional[List]
         """
         self.genotype: List = genotype if genotype is not None else []
+        self.bounds: List = bounds
         self.fitness_value: float = 0.0
         self.is_evaluated: bool = False
+        self._check_genotype_validity(bounds)
 
     @property
     def fitness(self) -> float:
@@ -31,6 +35,16 @@ class Individual(ABC):
         """Set fitness value and mark as evaluated."""
         self.fitness_value = value
         self.is_evaluated = True
+
+    @abstractmethod
+    def _check_genotype_validity(self, bounds) -> bool:
+        """
+        Check if the genotype is valid according to problem constraints.
+
+        :return: True if valid, False otherwise
+        :rtype: bool
+        """
+        pass
 
     def __repr__(self) -> str:
         return f"Individual(fitness={self.fitness_value:.4f}, genotype={self.genotype})"
