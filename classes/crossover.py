@@ -2,6 +2,8 @@ import random
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 
+import numpy as np
+
 from .individual import Individual, RealIndividual
 from .population import Population
 
@@ -26,12 +28,12 @@ class Crossover(ABC):
         return self.cross(*args, **kwargs)
 
 
-class BasicTSPCrossover(Crossover):
-    """Order crossover for TSP problems."""
+class OrderCrossover(Crossover):
+    """Single-point order crossover for permutation problems."""
 
     def cross(self, population: Population) -> Population:
         """
-        Apply order crossover to population pairs.
+        Apply single-point order crossover to population pairs.
 
         :param population: Population to apply crossover
         :type population: Population
@@ -43,21 +45,23 @@ class BasicTSPCrossover(Crossover):
 
         for i in range(0, len(population), 2):
             parent1 = population[i]
-            parent2 = population[i + 1] if i + 1 < len(population) else population[i]
+            parent2 = population[i + 1] if i + 1 < len(population) else parent1
 
             cross_point = random.randint(1, genome_length - 1)
-            child1, child2 = self._crossover_individuals(parent1, parent2, cross_point)
 
+            child1, child2 = self._crossover_individuals(parent1, parent2, cross_point)
             new_individuals.extend([child1, child2])
 
-        population.individuals = new_individuals
+        population = Population(
+            new_individuals[: len(population)], minimize=population.minimize
+        )
         return population
 
     def _crossover_individuals(
         self, parent1: Individual, parent2: Individual, cross_point: int
     ) -> Tuple[Individual, Individual]:
         """
-        Perform order crossover between two parents.
+        Perform single-point order crossover between two parents.
 
         :param parent1: First parent
         :type parent1: Individual
@@ -69,21 +73,22 @@ class BasicTSPCrossover(Crossover):
         :rtype: Tuple[Individual, Individual]
         """
 
-        def fill_genotype(child_genotype: List, parent_genotype: List) -> List:
-            child_set = set(child_genotype)
-            for gene in parent_genotype:
-                if gene not in child_set:
-                    child_genotype.append(gene)
-            return child_genotype
+        def build_genotype(p1_gen, p2_gen, point):
+            child_gen = np.full_like(p1_gen, -1)
+            child_gen[:point] = p1_gen[:point]
+            not_used_genes = np.setdiff1d(p2_gen, child_gen)
+            child_gen[point:] = not_used_genes
+            return child_gen
 
-        child1_genotype = parent1.genotype[:cross_point]
-        child2_genotype = parent2.genotype[:cross_point]
+        g1, g2 = parent1.genotype, parent2.genotype
 
-        child1_genotype = fill_genotype(child1_genotype, parent2.genotype)
-        child2_genotype = fill_genotype(child2_genotype, parent1.genotype)
+        child1_gen = build_genotype(g1, g2, cross_point)
+        child2_gen = build_genotype(g2, g1, cross_point)
 
-        return Individual(genotype=child1_genotype), Individual(
-            genotype=child2_genotype
+        child_class = parent1.__class__
+        bounds = parent1.bounds
+        return child_class(genotype=child1_gen, bounds=bounds), child_class(
+            genotype=child2_gen, bounds=bounds
         )
 
 
