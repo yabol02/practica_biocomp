@@ -2,6 +2,8 @@ import random
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 
+import numpy as np
+
 from .population import Population
 
 
@@ -38,7 +40,7 @@ class UniformMutation(Mutation):
         :type bounds: list[tuple[float, float]]
         """
         self.mutation_rate = mutation_rate
-        self.bounds = bounds
+        self.bounds = np.asanyarray(bounds)
 
     def mutate(self, population: Population) -> Population:
         """
@@ -49,10 +51,31 @@ class UniformMutation(Mutation):
         :return: Mutated population
         :rtype: Population
         """
-        for individual in population.individuals:
-            for i in range(len(individual.genotype)):
-                if random.random() < self.mutation_rate:
-                    low, high = self.bounds[i]
-                    individual.genotype[i] = random.uniform(low, high)
-                    individual.is_evaluated = False
+        if not population.individuals:
+            return population
+
+        n_individuals = len(population)
+        n_genes = len(self.bounds)
+        ind_class = population.ind_class
+        bounds = population.bounds
+
+        matrix = np.array([ind.genotype for ind in population.individuals])
+        mutation_mask = np.random.random((n_individuals, n_genes)) < self.mutation_rate
+        lows = self.bounds[:, 0]
+        highs = self.bounds[:, 1]
+        random_values = np.random.uniform(lows, highs, size=(n_individuals, n_genes))
+        matrix[mutation_mask] = random_values[mutation_mask]
+
+        any_mutation = mutation_mask.any(axis=1)
+        new_individuals = []
+        for i, mutated in enumerate(any_mutation):
+            if mutated:
+                new_ind = ind_class(genotype=matrix[i].tolist(), bounds=bounds)
+                new_individuals.append(new_ind)
+            else:
+                new_individuals.append(population.individuals[i])
+
+        population = Population(new_individuals, minimize=population.minimize)
+        return population
+
         return population
