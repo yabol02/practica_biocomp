@@ -72,10 +72,13 @@ class ElitistReplacement(Replacement):
         :rtype: Population
         """
         # Get elite from parents
-        elite = sorted(
-            parents.individuals,
-            key=lambda ind: ind.fitness if parents.minimize else -ind.fitness,
-        )[: self.elite_size]
+        if self.elite_size == 1:
+            elite = [parents.best_individual]
+        else:
+            elite = sorted(
+                parents.individuals,
+                key=lambda ind: ind.fitness if parents.minimize else -ind.fitness,
+            )[: self.elite_size]
 
         # Get best offspring to fill remaining slots
         remaining_size = len(parents) - self.elite_size
