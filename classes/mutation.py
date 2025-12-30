@@ -78,4 +78,50 @@ class UniformMutation(Mutation):
         population = Population(new_individuals, minimize=population.minimize)
         return population
 
+
+class SwapMutation(Mutation):
+    """Swap mutation for permutation-based individuals."""
+
+    def __init__(self, mutation_rate: float):
+        """
+        Initialize swap mutation.
+
+        :param mutation_rate: Probability of an individual undergoing mutation.
+        :type mutation_rate: float
+        """
+        self.mutation_rate = mutation_rate
+
+    def mutate(self, population: Population) -> Population:
+        """
+        Apply swap mutation to population.
+
+        :param population: Population to mutate
+        :type population: Population
+        :return: Mutated population
+        :rtype: Population
+        """
+        if not population.individuals:
+            return population
+
+        n_individuals = len(population)
+        ind_class = population.ind_class
+        bounds = population.bounds
+
+        to_mutate = np.random.random(n_individuals) < self.mutation_rate
+
+        new_individuals = []
+        for i, mutated in enumerate(to_mutate):
+            if mutated:
+                genotype = list(population.individuals[i].genotype)
+                n_genes = len(genotype)
+
+                idx1, idx2 = random.sample(range(n_genes), 2)
+                genotype[idx1], genotype[idx2] = genotype[idx2], genotype[idx1]
+
+                new_ind = ind_class(genotype=genotype, bounds=bounds)
+                new_individuals.append(new_ind)
+            else:
+                new_individuals.append(population.individuals[i])
+
+        population.individuals = new_individuals
         return population
