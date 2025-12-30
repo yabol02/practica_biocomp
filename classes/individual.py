@@ -69,6 +69,42 @@ class RealIndividual(Individual):
         :param bounds: Min/max bounds for each gene [(min, max), ...]
         :type bounds: List[Tuple[float, float]]
         """
-        super().__init__(genotype)
         if genotype is None and bounds is not None:
-            self.genotype = [random.uniform(low, high) for low, high in bounds]
+            genotype = [random.uniform(low, high) for low, high in bounds]
+
+        super().__init__(genotype, bounds)
+
+    def _check_genotype_validity(self, bounds: List[Tuple[float, float]]) -> bool:
+        """
+        Check if genotype values are within specified bounds.
+
+        :param bounds: Min/max bounds for each gene [(min, max), ...]
+        :type bounds: List[Tuple[float, float]]
+        :return: True if valid, False otherwise
+        """
+
+        if bounds is None or self.genotype is None:
+            return True
+
+        genes = np.asanyarray(self.genotype)
+        array_bounds = np.asanyarray(bounds)
+        low_limits = array_bounds[:, 0]
+        high_limits = array_bounds[:, 1]
+
+        if len(genes) != len(bounds):
+            raise ValueError(
+                f"Differnce of dimensions: Genotype({len(genes)}) != Bounds({len(bounds)})"
+            )
+
+        out_low = genes < low_limits
+        out_high = genes > high_limits
+
+        if np.any(out_low | out_high):
+            indices = np.where(out_low | out_high)[0]
+            raise ValueError(
+                f"Genes out of bounds at indices {indices}: "
+                f"Values {genes[indices]} out of [{low_limits[indices]}, {high_limits[indices]}]"
+            )
+
+        return True
+
