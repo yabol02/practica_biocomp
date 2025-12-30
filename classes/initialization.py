@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 from .individual import PermutationIndividual, RealIndividual
 from .population import Population
-from .problems import Problem
+from .problems import SingleObjectiveProblem
 
 
 class Initialization(ABC):
@@ -11,7 +11,7 @@ class Initialization(ABC):
 
     @abstractmethod
     def initialize(
-        self, population_size: int, bounds: List, problem: Problem
+        self, population_size: int, bounds: List, problem: SingleObjectiveProblem
     ) -> Population:
         """
         Initialize population.
@@ -39,7 +39,7 @@ class RandomInitialization(Initialization):
         self,
         population_size: int,
         bounds: List[Tuple[float, float]],
-        problem: Problem,
+        problem: SingleObjectiveProblem,
     ) -> Population:
         """
         Create random population.
@@ -54,7 +54,7 @@ class RandomInitialization(Initialization):
         :rtype: Population
         """
         individuals = [RealIndividual(bounds=bounds) for _ in range(population_size)]
-        return Population(individuals, minimize=True)
+        return Population(individuals, minimize=problem.minimize)
 
 
 class PermutationInitialization(Initialization):
@@ -64,7 +64,7 @@ class PermutationInitialization(Initialization):
         self,
         population_size: int,
         bounds: Tuple[int, int],
-        problem: Problem,
+        problem: SingleObjectiveProblem,
     ) -> Population:
         """
         Create a population of individuals with permuted genotypes.
@@ -77,4 +77,4 @@ class PermutationInitialization(Initialization):
         individuals = [
             PermutationIndividual(bounds=bounds) for _ in range(population_size)
         ]
-        return Population(individuals, minimize=True)
+        return Population(individuals, minimize=problem.minimize)

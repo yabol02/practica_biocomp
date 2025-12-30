@@ -123,5 +123,5 @@ class SwapMutation(Mutation):
             else:
                 new_individuals.append(population.individuals[i])
 
-        population.individuals = new_individuals
+        population = Population(new_individuals, minimize=population.minimize)
         return population

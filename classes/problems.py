@@ -73,9 +73,10 @@ class Problem(ABC):
 class SingleObjectiveProblem(Problem):
     """Base class for single-objective problems."""
 
-    def __init__(self, config: ProblemConfig):
+    def __init__(self, config: ProblemConfig, minimize: bool = True):
         super().__init__(config)
-        self.best_fitness: float = float("inf")
+        self.minimize = minimize
+        self.best_fitness: float = float("inf") if minimize else float("-inf")
         self.best_solution: Optional[List] = None
 
     def evaluate(self, solution: List) -> float:
@@ -90,11 +91,26 @@ class SingleObjectiveProblem(Problem):
         self.evaluations_count += 1
         fitness = self._fitness_function(solution)
 
-        if fitness < self.best_fitness:
+        if self._is_better(fitness, self.best_fitness):
             self.best_fitness = fitness
             self.best_solution = solution.copy()
 
         return fitness
+
+    def _is_better(self, new_fitness: float, current_best: float) -> bool:
+        """
+        Check whether the new fitness is better than current best.
+
+        :param new_fitness: New fitness value
+        :type new_fitness: float
+        :param current_best: Current best fitness value
+        :type current_best: float
+        :return: True if new fitness is better
+        :rtype: bool
+        """
+        if self.minimize:
+            return new_fitness < current_best
+        return new_fitness > current_best
 
     @abstractmethod
     def _fitness_function(self, solution: List) -> float:

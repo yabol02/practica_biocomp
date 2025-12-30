@@ -59,11 +59,10 @@ class Population:
         if not self.individuals:
             raise ValueError("Population is empty")
 
-        if self._best_individual is None:
-            self._best_individual = min(
-                self.individuals,
-                key=lambda ind: ind.fitness if self.minimize else -ind.fitness,
-            )
+        if self.minimize:
+            self._best_individual = min(self.individuals, key=lambda ind: ind.fitness)
+        else:
+            self._best_individual = max(self.individuals, key=lambda ind: ind.fitness)
         return self._best_individual
 
     @property
