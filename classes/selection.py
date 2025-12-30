@@ -51,11 +51,15 @@ class TournamentSelection(Selection):
         :rtype: Population
         """
         selected = []
+        class_ind = population.ind_class
+        bounds = population.bounds
+
         for _ in range(size):
             tournament = random.sample(population.individuals, self.tournament_size)
             winner = min(
                 tournament,
                 key=lambda ind: ind.fitness if population.minimize else -ind.fitness,
             )
-            selected.append(RealIndividual(genotype=winner.genotype.copy()))
+            selected.append(class_ind(genotype=winner.genotype.copy(), bounds=bounds))
+
         return Population(selected, minimize=population.minimize)
