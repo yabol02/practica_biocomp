@@ -284,20 +284,16 @@ class TSProblem(SingleObjectiveProblem):
 
     def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]]):
         super().__init__(config)
-        self.cities = np.asarray(cities, dtype=np.float64)
+        self.cities = np.asanyarray(cities, dtype=np.float64)
         self.n_cities = self.cities.shape[0]
         self.dist_matrix = self._compute_distance_matrix()
 
-    def get_bounds(self) -> List[Tuple[float, float]]:
+    def get_bounds(self) -> Tuple[int, int]:
         """
         In TSP by permutation, bounds are not used the same way as in continuous problems,
         but it is defined the range of valid indices for compatibility.
         """
-        dist_matrix = self.dist_matrix.copy()
-        np.fill_diagonal(dist_matrix, np.inf)
-        min_dists = np.min(dist_matrix, axis=1)
-        max_dists = np.max(self.dist_matrix, axis=1)
-        list(zip(min_dists, max_dists))
+        return (0, self.n_cities - 1)
 
     def _compute_distance_matrix(self) -> np.ndarray:
         """
@@ -350,6 +346,7 @@ class TSProblem(SingleObjectiveProblem):
         :return: Fitness value (inverse of path length).
         :rtype: float
         """
+        solution = np.asanyarray(solution)
         # TODO: We are considering only open paths for now, rewrite super().evaluate to pass this parameter
         return 1 / (1 + self._sol_distance(solution, closed=closed_path))
 
