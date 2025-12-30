@@ -108,3 +108,50 @@ class RealIndividual(Individual):
 
         return True
 
+
+class PermutationIndividual(Individual):
+    """Individual with integer-valued genotype for permutation problems."""
+
+    def __init__(
+        self,
+        genotype: Optional[np.ndarray] = None,
+        bounds: Tuple[int, int] = None,
+    ):
+        """
+        :param genotype: Optional predefined permutation.
+        :type genotype: Optional[List[int]]
+        :param bounds: Tuple defining the range of integers (min, max).
+        :type bounds: Tuple[int, int]
+        """
+        if genotype is None and bounds is not None:
+            genotype = np.arange(bounds[0], bounds[1] + 1, dtype=int)
+            np.random.shuffle(genotype)
+
+        super().__init__(genotype, bounds)
+
+    def _check_genotype_validity(self, bounds: Tuple[int, int]) -> bool:
+        """
+        Check if genotype is a valid permutation within bounds.
+
+        :param bounds: Tuple defining the range of integers (min, max).
+        :type bounds: Tuple[int, int]
+        :return: True if valid, raises ValueError otherwise.
+        :rtype: bool
+        """
+        if bounds is None or self.genotype is None:
+            return True
+
+        low, high = bounds
+        expected_len = high - low + 1
+        gen = np.asanyarray(self.genotype)
+
+        if len(gen) != expected_len:
+            raise ValueError(f"Incorrect length: {len(gen)} (expected: {expected_len})")
+
+        if np.any((gen < low) | (gen > high)):
+            raise ValueError(f"Values out of range [{low}, {high}]: {gen}")
+
+        if len(np.unique(gen)) != expected_len:
+            vals, counts = np.unique(gen, return_counts=True)
+            raise ValueError(f"Duplicate genes detected: {vals[counts > 1]}")
+        return True
