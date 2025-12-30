@@ -317,6 +317,8 @@ class TSProblem(SingleObjectiveProblem):
         :return: Total path length.
         :rtype: float
         """
+        solution = np.asanyarray(solution)
+
         if not np.all((0 <= solution) & (solution < self.n_cities)):
             raise ValueError("Solution contains invalid city index.")
 
@@ -346,9 +348,8 @@ class TSProblem(SingleObjectiveProblem):
         :return: Fitness value (inverse of path length).
         :rtype: float
         """
-        solution = np.asanyarray(solution)
         # TODO: We are considering only open paths for now, rewrite super().evaluate to pass this parameter
         return 1 / (1 + self._sol_distance(solution, closed=closed_path))
 
-    def to_aco_format(self):
+    def get_aco_results(self):
         raise NotImplementedError("ACO format conversion not implemented yet.")
