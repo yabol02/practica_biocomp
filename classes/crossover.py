@@ -119,7 +119,7 @@ class BlendCrossover(Crossover):
             parent2 = population[i + 1] if i + 1 < len(population) else population[i]
             child1, child2 = self._blend_individuals(parent1, parent2)
             new_individuals.extend([child1, child2])
-        population.individuals = new_individuals
+        population = Population(new_individuals, minimize=population.minimize)
         return population
 
     def _blend_individuals(

@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from pyswarms.single import GlobalBestPSO
 
 from .configurations import ProblemConfig
+from .individual import Individual
 from .results import (MultiObjectiveResult, OptimizationResult,
                       SingleObjectiveResult)
 
@@ -77,7 +78,7 @@ class SingleObjectiveProblem(Problem):
         super().__init__(config)
         self.minimize = minimize
         self.best_fitness: float = float("inf") if minimize else float("-inf")
-        self.best_solution: Optional[List] = None
+        self.best_solution: Optional[Individual] = None
 
     def evaluate(self, solution: List) -> float:
         """
@@ -224,8 +225,8 @@ class MultiObjectiveProblem(Problem):
 class HimmelblauProblem(SingleObjectiveProblem):
     """Himmelblau function optimization problem."""
 
-    def __init__(self, config: ProblemConfig):
-        super().__init__(config)
+    def __init__(self, config: ProblemConfig, minimize: bool = True):
+        super().__init__(config, minimize)
         self.bounds = [(-5.0, 5.0), (-5.0, 5.0)]
 
     def _fitness_function(self, solution: List) -> float:
@@ -298,8 +299,8 @@ class HimmelblauProblem(SingleObjectiveProblem):
 class TSProblem(SingleObjectiveProblem):
     """Traveling Salesman Problem (TSP)."""
 
-    def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]]):
-        super().__init__(config)
+    def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]], minimize: bool = True):
+        super().__init__(config, minimize)
         self.cities = np.asanyarray(cities, dtype=np.float64)
         self.n_cities = self.cities.shape[0]
         self.dist_matrix = self._compute_distance_matrix()
@@ -352,7 +353,7 @@ class TSProblem(SingleObjectiveProblem):
         return float(total)
 
     def _fitness_function(
-        self, solution: np.ndarray, closed_path: bool = False
+        self, solution: np.ndarray, closed_path: bool = True
     ) -> float:
         """
         Fitness function for TSP: inverse of path length.
