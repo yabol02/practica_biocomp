@@ -1,55 +1,154 @@
-from abc import ABC, abstractmethod
 import random
+from abc import ABC, abstractmethod
+from typing import List, Tuple
 
-from .individual import Individual
+import numpy as np
+
+from .individual import Individual, RealIndividual
+from .population import Population
+
 
 class Crossover(ABC):
+    """Abstract base class for crossover operators."""
+
     @abstractmethod
-    def cross(self, population):      
+    def cross(self, population: Population) -> Population:
         """
-        Perform crossover on the given population.
-        """  
+        Perform crossover on population.
+
+        :param population: Population to apply crossover
+        :type population: Population
+        :return: New population after crossover
+        :rtype: Population
+        """
         pass
 
-class BasicTSPCrossover(Crossover):
-    def cross(self, population):
+    def __call__(self, *args, **kwargs) -> Population:
+        """Alias for `cross` method."""
+        return self.cross(*args, **kwargs)
+
+
+class OrderCrossover(Crossover):
+    """Single-point order crossover for permutation problems."""
+
+    def cross(self, population: Population) -> Population:
         """
-        Given one parent, gets a random number from 0 to number of total genes.
-        From 0 to that number, get genes from parent 1, then creates a set and the rest of the genotipe is covered by the mother.
+        Apply single-point order crossover to population pairs.
+
+        :param population: Population to apply crossover
+        :type population: Population
+        :return: Population with offspring
+        :rtype: Population
         """
-        new_individuals = []
-        len_genome = len(population[0].genotype)
+        new_individuals: List[Individual] = []
+        genome_length = len(population[0].genotype)
+
         for i in range(0, len(population), 2):
             parent1 = population[i]
-            parent2 = population[i + 1]
-            child1, child2 = self.crossover_individuals(parent1, parent2, cross_point=random.randint(1, len_genome - 1))
-            new_individuals.append(child1)
-            new_individuals.append(child2)
-        population.indivisuals = new_individuals
+            parent2 = population[i + 1] if i + 1 < len(population) else parent1
+
+            cross_point = random.randint(1, genome_length - 1)
+
+            child1, child2 = self._crossover_individuals(parent1, parent2, cross_point)
+            new_individuals.extend([child1, child2])
+
+        population = Population(
+            new_individuals[: len(population)], minimize=population.minimize
+        )
         return population
 
-    def crossover_individuals(self, parent1, parent2, cross_point):
+    def _crossover_individuals(
+        self, parent1: Individual, parent2: Individual, cross_point: int
+    ) -> Tuple[Individual, Individual]:
         """
-        Performs crossover between two individuals at the specified crossover point.
+        Perform single-point order crossover between two parents.
+
+        :param parent1: First parent
+        :type parent1: Individual
+        :param parent2: Second parent
+        :type parent2: Individual
+        :param cross_point: Crossover point
+        :type cross_point: int
+        :return: Two offspring individuals
+        :rtype: Tuple[Individual, Individual]
         """
-        child1_genotype = parent1.genotype[:cross_point]
-        child2_genotype = parent2.genotype[:cross_point]
 
-        def fill_genotype(child_genotype, parent_genotype):
-            child_set = set(child_genotype)
-            for gene in parent_genotype:
-                if gene not in child_set:
-                    child_genotype.append(gene)
-            return child_genotype
+        def build_genotype(p1_gen, p2_gen, point):
+            child_gen = np.full_like(p1_gen, -1)
+            child_gen[:point] = p1_gen[:point]
+            not_used_genes = np.setdiff1d(p2_gen, child_gen)
+            child_gen[point:] = not_used_genes
+            return child_gen
 
-        child1_genotype = fill_genotype(child1_genotype, parent2.genotype)
-        child2_genotype = fill_genotype(child2_genotype, parent1.genotype)
+        g1, g2 = parent1.genotype, parent2.genotype
 
-        child1 = Individual(genotype=child1_genotype)
-        child2 = Individual(genotype=child2_genotype)
+        child1_gen = build_genotype(g1, g2, cross_point)
+        child2_gen = build_genotype(g2, g1, cross_point)
 
-        return child1, child2
+        child_class = parent1.__class__
+        bounds = parent1.bounds
+        return child_class(genotype=child1_gen, bounds=bounds), child_class(
+            genotype=child2_gen, bounds=bounds
+        )
 
-            
-            
-    
+
+class BlendCrossover(Crossover):
+    """Blend crossover (BLX-α) for real-valued genes."""
+
+    def __init__(self, alpha: float = 0.5):
+        """
+        Initialize blend crossover.
+
+        :param alpha: Extension factor beyond parent range
+        :type alpha: float
+        """
+        self.alpha = alpha
+
+    def cross(self, population: Population) -> Population:
+        """
+        Apply blend crossover to population pairs.
+
+        :param population: Population to apply crossover
+        :type population: Population
+        :return: Population with offspring
+        :rtype: Population
+        """
+        new_individuals = []
+        for i in range(0, len(population), 2):
+            parent1 = population[i]
+            parent2 = population[i + 1] if i + 1 < len(population) else population[i]
+            child1, child2 = self._blend_individuals(parent1, parent2)
+            new_individuals.extend([child1, child2])
+        population = Population(new_individuals, minimize=population.minimize)
+        return population
+
+    def _blend_individuals(
+        self, parent1: Individual, parent2: Individual
+    ) -> Tuple[Individual, Individual]:
+        """
+        Create offspring using blend crossover.
+
+        :param parent1: First parent
+        :type parent1: Individual
+        :param parent2: Second parent
+        :type parent2: Individual
+        :return: Two offspring
+        :rtype: Tuple[Individual, Individual]
+        """
+        child1_genotype = []
+        child2_genotype = []
+
+        for g1, g2 in zip(parent1.genotype, parent2.genotype):
+            min_val = min(g1, g2)
+            max_val = max(g1, g2)
+            range_val = max_val - min_val
+
+            low = min_val - self.alpha * range_val
+            high = max_val + self.alpha * range_val
+
+            child1_genotype.append(random.uniform(low, high))
+            child2_genotype.append(random.uniform(low, high))
+
+        return RealIndividual(genotype=child1_genotype), RealIndividual(
+            genotype=child2_genotype
+        )

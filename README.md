@@ -2,10 +2,12 @@
 <div align="center">
   <h1 align="center">🧬 Práctica de Computación Evolutiva y Bioinspirada</h1>
 
-[![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![Dependency Manager](https://img.shields.io/badge/uv-astral-purple?logo=python&logoColor=white)](https://docs.astral.sh/uv/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-En_Desarrollo-orange)]()
+  [![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+  [![Dependency Manager](https://img.shields.io/badge/uv-astral-purple?logo=python&logoColor=white)](https://docs.astral.sh/uv/)
+  [![Code Style Black](https://img.shields.io/badge/Code%20Style-Black-black)](https://github.com/psf/black)
+  [![Imports isort](https://img.shields.io/badge/Imports-isort-blue)](https://pycqa.github.io/isort/)
+  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+  [![Status](https://img.shields.io/badge/Status-En_Desarrollo-orange)]()
   <p align="center">
     Implementación de Algoritmos Genéticos y Estrategias Evolutivas 
     <br />
@@ -101,8 +103,8 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 - [ ] Ordenación
 - [ ] Selección
 - [ ] Mutación
-- [ ] Crossover
-- [ ] Evolve
+- [ ] Cruce
+- [ ] Evolución
 - [ ] TSP
 - [ ] Tres tipos de mutaciones
 - [ ] Optimización final de Himmelblau
