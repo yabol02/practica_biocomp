@@ -4,7 +4,7 @@ Individual class for genetic algorithms.
 
 import random
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -21,19 +21,37 @@ class Individual(ABC):
         """
         self.genotype: List = genotype if genotype is not None else []
         self.bounds: List = bounds
-        self.fitness_value: float = 0.0
+        self._fitness_value: Optional[np.ndarray[float]] = None
         self.is_evaluated: bool = False
         self._check_genotype_validity(bounds)
 
     @property
-    def fitness(self) -> float:
-        """Get fitness value."""
-        return self.fitness_value
+    def fitness(self) -> Union[float, np.ndarray]:
+        """
+        Get fitness value.
+        Returns a scalar if it's mono-objective (1x1) or the array if it's multi-objective.
+
+        :return: Fitness value
+        :rtype: Union[float, np.ndarray]
+        """
+        if self._fitness_value is None:
+            return 0.0
+        
+        if self._fitness_value.size == 1:
+            return self._fitness_value.item()
+        
+        return self._fitness_value
 
     @fitness.setter
     def fitness(self, value: float) -> None:
-        """Set fitness value and mark as evaluated."""
-        self.fitness_value = value
+        """
+        Set fitness value and mark as evaluated.
+        Ensures the input is stored as a numpy array internally.
+
+        :param value: Fitness value
+        :type value: float
+        """
+        self._fitness_value = np.atleast_1d(value)
         self.is_evaluated = True
 
     @abstractmethod
@@ -47,11 +65,10 @@ class Individual(ABC):
         pass
 
     def __repr__(self) -> str:
-        return f"Individual(fitness={self.fitness_value:.4f}, genotype={self.genotype})"
+        return f"Individual(fitness={self.fitness:.4f}, genotype={self.genotype})"
 
     def __str__(self) -> str:
-        return f"Individual with fitness: {self.fitness_value:.4f}"
-
+        return f"Individual with fitness: {self.fitness:.4f}"
 
 class RealIndividual(Individual):
     """Individual with real-valued genotype for continuous optimization."""

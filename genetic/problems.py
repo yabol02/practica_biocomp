@@ -510,25 +510,25 @@ class PymooProblem(MultiObjectiveProblem):
 
     def get_bounds(self) -> List[Tuple[float, float]]:
         """
-        Docstring for get_bounds
-        
-        :param self: Description
-        :return: Description
+        Get variable bounds.
+
+        :return: List of (min, max) bounds for each variable
         :rtype: List[Tuple[float, float]]
         """
         if isinstance(self.lower_bound, np.ndarray):
-            return [(float(l), float(u)) for l, u in zip(self.lower_bound, self.upper_bound)]
+            return [
+                (float(l), float(u)) for l, u in zip(self.lower_bound, self.upper_bound)
+            ]
         else:
             return [(float(self.lower_bound), float(self.upper_bound))] * self.n_var
 
     def get_true_pareto_front(self, n_points: int = 100) -> Optional[np.ndarray]:
         """
         Get the true Pareto front from Pymoo (if available).
-        
+
         :param n_points: Number of points to sample
         :type n_points: int
         :return: True Pareto front or None
         :rtype: Optional[np.ndarray]
         """
         return self.pymoo_problem.pareto_front(n_points)
-    
