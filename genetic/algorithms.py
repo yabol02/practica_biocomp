@@ -126,3 +126,4 @@ class GeneticAlgorithmSO:
             f"rep={self.replacement.__class__.__name__}"
             f")"
         )
+

@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+from pymoo.problems import get_problem
+from pymoo.visualization.scatter import Scatter
 from pyswarms.single import GlobalBestPSO
 
 from .configurations import ProblemConfig
@@ -164,8 +166,10 @@ class MultiObjectiveProblem(Problem):
         """
         super().__init__(config)
         self.n_objectives = n_objectives
-        self.pareto_front: List[List[float]] = []
-        self.pareto_solutions: List[List] = []
+        self.pareto_front: List[np.ndarray] = []
+        self.pareto_solutions: List[np.ndarray] = []
+        self.all_objectives: List[np.ndarray] = []
+        self.all_solutions: List[np.ndarray] = []
 
     def evaluate(self, solution: List) -> List[float]:
         """
@@ -177,10 +181,15 @@ class MultiObjectiveProblem(Problem):
         :rtype: List[float]
         """
         self.evaluations_count += 1
-        return self._fitness_function(solution)
+        objectives = self._fitness_function(solution)
+
+        self.all_objectives.append(np.asanyarray(objectives))
+        self.all_solutions.append(np.asanyarray(solution))
+
+        return np.array(objectives)
 
     @abstractmethod
-    def _fitness_function(self, solution: List) -> List[float]:
+    def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
         """
         Problem-specific multi-objective fitness function.
 
@@ -191,19 +200,61 @@ class MultiObjectiveProblem(Problem):
         """
         pass
 
+    def dominates(self, obj1: np.ndarray, obj2: np.ndarray) -> bool:
+        """
+        Check if obj1 dominates obj2 (Pareto dominance).
+
+        :param obj1: First objective vector
+        :type obj1: np.ndarray
+        :param obj2: Second objective vector
+        :type obj2: np.ndarray
+        :return: True if obj1 dominates obj2
+        :rtype: bool
+        """
+        return np.all(obj1 <= obj2) and np.any(obj1 < obj2)
+
     def update_pareto_front(
-        self, objectives: List[List[float]], solutions: List[List]
+        self, objectives: List[np.ndarray], solutions: List[np.ndarray]
     ) -> None:
         """
-        Update Pareto front with new solutions.
+        Update Pareto front with new solutions using non-dominated sorting.
 
         :param objectives: List of objective vectors
-        :type objectives: List[List[float]]
+        :type objectives: List[np.ndarray]
         :param solutions: Corresponding solutions
-        :type solutions: List[List]
+        :type solutions: List[np.ndarray]
         """
-        self.pareto_front = objectives
-        self.pareto_solutions = solutions
+        if not objectives:
+            return
+
+        objectives_array = np.asanyarray(objectives)
+        solutions_array = np.asanyarray(solutions)
+
+        pareto_mask = np.ones(len(objectives_array), dtype=bool)
+
+        for i, obj_i in enumerate(objectives_array):
+            for j, obj_j in enumerate(objectives_array):
+                if i != j and self.dominates(obj_j, obj_i):
+                    pareto_mask[i] = False
+                    break
+
+        self.pareto_front = objectives_array[pareto_mask]
+        self.pareto_solutions = solutions_array[pareto_mask]
+
+    def update_history(self, current_objectives: Optional[np.ndarray] = None) -> None:
+        """
+        Update history with current Pareto front metrics.
+        If available, it stores the number of non-dominated solutions and hypervolume.
+
+        :param current_objectives: Current population objectives (optional)
+        :type current_objectives: Optional[np.ndarray]
+        """
+        metrics = {"n_pareto": len(self.pareto_front), "generation": len(self.history)}
+
+        metrics["pareto_spread"] = np.mean(np.var(self.pareto_front, axis=0))
+        metrics["nd_ratio"] = len(self.pareto_front) / len(current_objectives)
+
+        self.history.append(metrics)
 
     def get_result(self) -> MultiObjectiveResult:
         """
@@ -212,14 +263,49 @@ class MultiObjectiveProblem(Problem):
         :return: Result object
         :rtype: MultiObjectiveResult
         """
+        if self.all_objectives:
+            self.update_pareto_front(self.all_objectives, self.all_solutions)
+
+        metrics = {
+            "n_pareto_solutions": len(self.pareto_front),
+            "pareto_spread": (
+                np.mean(np.var(self.pareto_front, axis=0))
+                if self.pareto_front
+                else None
+            ),
+        }
+
         return MultiObjectiveResult(
             problem_name=self.__class__.__name__,
             best_fitness=self.pareto_front,
             best_solution=self.pareto_solutions,
             evaluations_used=self.evaluations_count,
             pareto_front=self.pareto_front,
-            metrics={},
+            metrics=metrics,
         )
+
+    def plot_pareto_front(self, show_true_front: bool = False) -> None:
+        """
+        Plot the obtained Pareto front.
+
+        :param show_true_front: Whether to show the true Pareto front (if available)
+        :type show_true_front: bool
+        """
+        if not self.pareto_front:
+            print("No Pareto front available yet.")
+            return
+
+        pareto = np.asarray(self.pareto_front)
+
+        scatter = Scatter(title=f"{self.__class__.__name__} - Pareto Front")
+        scatter.add(pareto, color="blue", label="Obtained")
+
+        if show_true_front and hasattr(self, "get_true_pareto_front"):
+            true_font = self.get_true_pareto_front()
+            if true_font is not None:
+                scatter.add(true_font, color="red", label="True Front", alpha=0.5)
+
+        scatter.show()
 
 
 class HimmelblauProblem(SingleObjectiveProblem):
@@ -299,7 +385,12 @@ class HimmelblauProblem(SingleObjectiveProblem):
 class TSProblem(SingleObjectiveProblem):
     """Traveling Salesman Problem (TSP)."""
 
-    def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]], minimize: bool = True):
+    def __init__(
+        self,
+        config: ProblemConfig,
+        cities: Iterable[Tuple[float, float]],
+        minimize: bool = True,
+    ):
         super().__init__(config, minimize)
         self.cities = np.asanyarray(cities, dtype=np.float64)
         self.n_cities = self.cities.shape[0]
@@ -370,3 +461,74 @@ class TSProblem(SingleObjectiveProblem):
 
     def get_aco_results(self):
         raise NotImplementedError("ACO format conversion not implemented yet.")
+
+
+class PymooProblem(MultiObjectiveProblem):
+    """Wrapper for pymoo multi-objective problems."""
+
+    def __init__(
+        self, config, problem_name: str, n_var: Optional[int] = None, **problem_kwargs
+    ):
+        """
+        Initialize Pymoo problem.
+
+        :param config: Problem configuration
+        :type config: ProblemConfig
+        :param problem_name: Name of the pymoo problem (e.g., 'zdt1', 'zdt3', 'mw7', 'mw14')
+        :type problem_name: str
+        :param n_var: Number of variables (optional, uses Pymoo default if not provided)
+        :type n_var: Optional[int]
+        :param problem_kwargs: Additional problem-specific arguments
+        """
+        if n_var is not None:
+            problem_kwargs["n_var"] = n_var
+
+        self.pymoo_problem = get_problem(problem_name.lower(), **problem_kwargs)
+
+        super().__init__(config, n_objectives=self.pymoo_problem.n_obj)
+
+        self.problem_name = problem_name.upper()
+        self.n_var = self.pymoo_problem.n_var
+        self.lower_bound = self.pymoo_problem.xl
+        self.upper_bound = self.pymoo_problem.xu
+
+    def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
+        """
+        Evaluate the problem.
+
+        :param solution: Solution to evaluate
+        :type solution: Union[List, np.ndarray]
+        :return: Objective values
+        :rtype: np.ndarray
+        """
+        solution = np.asanyarray(solution)
+
+        if solution.ndim == 1:
+            solution = solution.reshape(1, -1)
+
+        return self.pymoo_problem.evaluate(solution)
+
+    def get_bounds(self) -> List[Tuple[float, float]]:
+        """
+        Docstring for get_bounds
+        
+        :param self: Description
+        :return: Description
+        :rtype: List[Tuple[float, float]]
+        """
+        if isinstance(self.lower_bound, np.ndarray):
+            return [(float(l), float(u)) for l, u in zip(self.lower_bound, self.upper_bound)]
+        else:
+            return [(float(self.lower_bound), float(self.upper_bound))] * self.n_var
+
+    def get_true_pareto_front(self, n_points: int = 100) -> Optional[np.ndarray]:
+        """
+        Get the true Pareto front from Pymoo (if available).
+        
+        :param n_points: Number of points to sample
+        :type n_points: int
+        :return: True Pareto front or None
+        :rtype: Optional[np.ndarray]
+        """
+        return self.pymoo_problem.pareto_front(n_points)
+    
