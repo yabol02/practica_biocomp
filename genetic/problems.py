@@ -557,7 +557,7 @@ class PymooProblem(MultiObjectiveProblem):
         if solution.ndim == 1:
             solution = solution.reshape(1, -1)
 
-        return self.pymoo_problem.evaluate(solution).squeeze()
+        return self.pymoo_problem.evaluate(solution, return_values_of=["F"]).squeeze()
 
     def get_bounds(self) -> List[Tuple[float, float]]:
         """
@@ -582,4 +582,4 @@ class PymooProblem(MultiObjectiveProblem):
         :return: True Pareto front or None
         :rtype: Optional[np.ndarray]
         """
-        return self.pymoo_problem.pareto_front(n_points)
+        return self.pymoo_problem.pareto_front()
