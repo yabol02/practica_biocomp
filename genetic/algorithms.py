@@ -97,7 +97,7 @@ class GeneticAlgorithmSO:
             selected = self.selection(population, self.population_size)
 
             # Crossover
-            offspring = self.crossover(selected)
+            offspring = self.crossover(selected, len(parents))
 
             # Mutation
             offspring = self.mutation(offspring)
