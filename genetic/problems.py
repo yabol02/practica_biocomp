@@ -331,20 +331,23 @@ class MultiObjectiveProblem(Problem):
             metrics=metrics,
         )
 
-    def plot_pareto_front(self, show_true_front: bool = False) -> None:
+    def plot_pareto_front(
+        self, show_true_front: bool = False, problem_name: str = ""
+    ) -> Scatter:
         """
         Plot the obtained Pareto front.
 
         :param show_true_front: Whether to show the true Pareto front (if available)
         :type show_true_front: bool
         """
-        if not self.pareto_front:
+        if not np.any(self.pareto_front):
             print("No Pareto front available yet.")
             return
 
         pareto = np.asarray(self.pareto_front)
 
-        scatter = Scatter(title=f"{self.__class__.__name__} - Pareto Front")
+        problem_name = problem_name if problem_name else self.__class__.__name__
+        scatter = Scatter(title=f"{problem_name} - Pareto Front")
         scatter.add(pareto, color="blue", label="Obtained")
 
         if show_true_front and hasattr(self, "get_true_pareto_front"):
@@ -352,7 +355,7 @@ class MultiObjectiveProblem(Problem):
             if true_front is not None:
                 scatter.add(true_front, color="red", label="True Front", alpha=0.5)
 
-        scatter.show()
+        return scatter
 
 
 class HimmelblauProblem(SingleObjectiveProblem):
@@ -579,5 +582,4 @@ class PymooProblem(MultiObjectiveProblem):
         :return: True Pareto front or None
         :rtype: Optional[np.ndarray]
         """
-        return self.pymoo_problem.pareto_front(n_points)
         return self.pymoo_problem.pareto_front(n_points)
