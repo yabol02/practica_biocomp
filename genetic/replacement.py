@@ -45,6 +45,10 @@ class GenerationalReplacement(Replacement):
         :return: Offspring as new population
         :rtype: Population
         """
+        if len(parents) != len(offspring):
+            raise ValueError(
+                "Population sizes of parents and offspring must be equal for GenerationalReplacement."
+            )
         return offspring
 
 
@@ -88,7 +92,11 @@ class ElitistReplacement(Replacement):
         )[:remaining_size]
 
         new_individuals = elite + best_offspring
-        return Population(new_individuals, minimize=parents.minimize)
+        return Population(
+            new_individuals,
+            minimize=parents.minimize,
+            multiobjective=parents.multiobjective,
+        )
 
 
 class MuPlusLambdaReplacement(Replacement):
@@ -112,4 +120,6 @@ class MuPlusLambdaReplacement(Replacement):
             combined, key=lambda ind: ind.fitness if parents.minimize else -ind.fitness
         )[:target_size]
 
-        return Population(best, minimize=parents.minimize)
+        return Population(
+            best, minimize=parents.minimize, multiobjective=parents.multiobjective
+        )

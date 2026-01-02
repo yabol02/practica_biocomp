@@ -1,12 +1,13 @@
 import random
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 
 from .individual import PermutationIndividual, RealIndividual
 from .population import Population
-from .problems import SingleObjectiveProblem, TSProblem
+from .problems import (MultiObjectiveProblem, Problem, SingleObjectiveProblem,
+                       TSProblem)
 
 
 class Initialization(ABC):
@@ -14,7 +15,10 @@ class Initialization(ABC):
 
     @abstractmethod
     def initialize(
-        self, population_size: int, bounds: List, problem: SingleObjectiveProblem
+        self,
+        population_size: int,
+        bounds: List,
+        problem: Problem,
     ) -> Population:
         """
         Initialize population.
@@ -42,7 +46,7 @@ class RandomInitialization(Initialization):
         self,
         population_size: int,
         bounds: List[Tuple[float, float]],
-        problem: SingleObjectiveProblem,
+        problem: Union[SingleObjectiveProblem, MultiObjectiveProblem],
     ) -> Population:
         """
         Create random population.
@@ -52,12 +56,15 @@ class RandomInitialization(Initialization):
         :param bounds: Variable bounds
         :type bounds: List
         :param problem: Problem instance
-        :type problem: Problem
+        :type problem: Union[SingleObjectiveProblem, MultiObjectiveProblem]
         :return: Random population
         :rtype: Population
         """
         individuals = [RealIndividual(bounds=bounds) for _ in range(population_size)]
-        return Population(individuals, minimize=problem.minimize)
+        multiobjective = isinstance(problem, MultiObjectiveProblem)
+        return Population(
+            individuals, minimize=problem.minimize, multiobjective=multiobjective
+        )
 
 
 class PermutationInitialization(Initialization):
@@ -67,7 +74,7 @@ class PermutationInitialization(Initialization):
         self,
         population_size: int,
         bounds: Tuple[int, int],
-        problem: SingleObjectiveProblem,
+        problem: Union[SingleObjectiveProblem, MultiObjectiveProblem],
     ) -> Population:
         """
         Create a population of individuals with permuted genotypes.
@@ -83,7 +90,10 @@ class PermutationInitialization(Initialization):
         individuals = [
             PermutationIndividual(bounds=bounds) for _ in range(population_size)
         ]
-        return Population(individuals, minimize=problem.minimize)
+        multiobjective = isinstance(problem, MultiObjectiveProblem)
+        return Population(
+            individuals, minimize=problem.minimize, multiobjective=multiobjective
+        )
 
 
 class NeighborInitialization(Initialization):

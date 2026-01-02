@@ -75,7 +75,11 @@ class UniformMutation(Mutation):
             else:
                 new_individuals.append(population[i])
 
-        population = Population(new_individuals, minimize=population.minimize)
+        population = Population(
+            new_individuals,
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
+        )
         return population
 
 
@@ -123,5 +127,9 @@ class SwapMutation(Mutation):
             else:
                 new_individuals.append(population[i])
 
-        population = Population(new_individuals, minimize=population.minimize)
+        population = Population(
+            new_individuals,
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
+        )
         return population

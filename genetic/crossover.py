@@ -63,7 +63,9 @@ class OrderCrossover(Crossover):
                 new_individuals.append(child2)
 
         population = Population(
-            new_individuals[:n_offspring], minimize=population.minimize
+            new_individuals[:n_offspring],
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
         )
         return population
 
@@ -141,7 +143,9 @@ class BlendCrossover(Crossover):
                 new_individuals.append(child2)
 
         population = Population(
-            new_individuals[:n_offspring], minimize=population.minimize
+            new_individuals[:n_offspring],
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
         )
         return population
 
@@ -161,13 +165,21 @@ class BlendCrossover(Crossover):
         child1_genotype = []
         child2_genotype = []
 
-        for g1, g2 in zip(parent1.genotype, parent2.genotype):
+        bounds = parent1.bounds
+
+        for i, (g1, g2) in enumerate(zip(parent1.genotype, parent2.genotype)):
             min_val = min(g1, g2)
             max_val = max(g1, g2)
             range_val = max_val - min_val
 
             low = min_val - self.alpha * range_val
             high = max_val + self.alpha * range_val
+
+            gene_low_bound = bounds[i][0]
+            gene_high_bound = bounds[i][1]
+
+            low = max(low, gene_low_bound)
+            high = min(high, gene_high_bound)
 
             child1_genotype.append(random.uniform(low, high))
             child2_genotype.append(random.uniform(low, high))

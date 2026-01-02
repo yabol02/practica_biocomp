@@ -13,15 +13,20 @@ class Population:
     """Represents a population of individuals."""
 
     def __init__(
-        self, individuals: Optional[List[Individual]] = None, minimize: bool = True
+        self,
+        individuals: Optional[List[Individual]] = None,
+        minimize: bool = True,
+        multiobjective: bool = False,
     ):
         """
         Initialize population.
 
         :param individuals: Initial list of individuals
         :type individuals: Optional[List[Individual]]
-        :param minimize: True to minimize fitness, False to maximize
+        :param minimize: True to minimize fitness, False to maximize. Default is True
         :type minimize: bool
+        :param multiobjective: True if the problem is multi-objective. Default is False
+        :type multiobjective: bool
         """
         self.individuals: List[Individual] = (
             individuals if individuals is not None else []
@@ -29,6 +34,7 @@ class Population:
         self.minimize: bool = minimize
         self._best_individual: Optional[Individual] = None
         self._is_sorted: bool = False
+        self.multiobjective: bool = multiobjective
 
     def evaluate_population(self, fitness_function: Callable[[Any], float]) -> None:
         """
@@ -44,8 +50,10 @@ class Population:
 
         for ind in unevaluated:
             ind.fitness = fitness_function(ind.genotype)
-        self._best_individual = self.best_individual
-        self._is_sorted = False
+
+        if not self.multiobjective:
+            self._best_individual = self.best_individual
+            self._is_sorted = False
 
     @property
     def best_individual(self) -> Individual:
@@ -63,6 +71,7 @@ class Population:
             self._best_individual = min(self.individuals, key=lambda ind: ind.fitness)
         else:
             self._best_individual = max(self.individuals, key=lambda ind: ind.fitness)
+
         return self._best_individual
 
     @property
