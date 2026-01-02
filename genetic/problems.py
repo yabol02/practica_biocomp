@@ -166,8 +166,9 @@ class MultiObjectiveProblem(Problem):
         """
         super().__init__(config)
         self.n_objectives = n_objectives
-        self.pareto_front: List[np.ndarray] = []
-        self.pareto_solutions: List[np.ndarray] = []
+        self.pareto_front: np.ndarray = np.empty((0, n_objectives))
+        self.pareto_solutions: np.ndarray = np.empty((0, 0))
+        self.pareto_history: List[Tuple[np.ndarray, np.ndarray]] = []
         self.all_objectives: List[np.ndarray] = []
         self.all_solutions: List[np.ndarray] = []
 
@@ -200,6 +201,48 @@ class MultiObjectiveProblem(Problem):
         """
         pass
 
+    def _calculate_non_dominated(
+        self, objectives: np.ndarray, solutions: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Auxiliar method to filter dominated solutions from a given set.
+
+        :param objectives: Array of objective vectors
+        :type objectives: np.ndarray
+        :param solutions: Corresponding solutions
+        :type solutions: np.ndarray
+        :return: Non-dominated objectives and corresponding solutions
+        :rtype: Tuple[np.ndarray, np.ndarray]
+        """
+        is_dominated = np.zeros(len(objectives), dtype=bool)
+
+        for i, obj_i in enumerate(objectives):
+            if is_dominated[i]:
+                continue
+            for j, obj_j in enumerate(objectives):
+                if i != j and not is_dominated[j]:
+                    if self.dominates(obj_j, obj_i):
+                        is_dominated[i] = True
+                        break
+
+        return objectives[~is_dominated], solutions[~is_dominated]
+
+    @property
+    def true_pareto_front(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Obtain the 'true' Pareto front calculated over ALL historical solutions.
+
+        :return: Non-dominated objectives and corresponding solutions
+        :rtype: Tuple[np.ndarray, np.ndarray]
+        """
+        if not self.all_objectives:
+            return np.array([]), np.array([])
+
+        all_obj_flat = np.vstack(self.all_objectives)
+        all_sol_flat = np.vstack(self.all_solutions)
+
+        return self._calculate_non_dominated(all_obj_flat, all_sol_flat)
+
     def dominates(self, obj1: np.ndarray, obj2: np.ndarray) -> bool:
         """
         Check if obj1 dominates obj2 (Pareto dominance).
@@ -214,32 +257,36 @@ class MultiObjectiveProblem(Problem):
         return np.all(obj1 <= obj2) and np.any(obj1 < obj2)
 
     def update_pareto_front(
-        self, objectives: List[np.ndarray], solutions: List[np.ndarray]
+        self, new_objectives: List[np.ndarray], new_solutions: List[np.ndarray]
     ) -> None:
         """
         Update Pareto front with new solutions using non-dominated sorting.
 
-        :param objectives: List of objective vectors
-        :type objectives: List[np.ndarray]
-        :param solutions: Corresponding solutions
-        :type solutions: List[np.ndarray]
+        :param new_objectives: List of objective vectors
+        :type new_objectives: List[np.ndarray]
+        :param new_solutions: Corresponding solutions
+        :type new_solutions: List[np.ndarray]
         """
-        if not objectives:
+        if not new_objectives:
             return
 
-        objectives_array = np.asanyarray(objectives)
-        solutions_array = np.asanyarray(solutions)
+        objectives_array = np.asanyarray(new_objectives)
+        solutions_array = np.asanyarray(new_solutions)
 
-        pareto_mask = np.ones(len(objectives_array), dtype=bool)
+        if self.pareto_front.size > 0:
+            combined_objectives = np.vstack((self.pareto_front, objectives_array))
+            combined_solutions = np.vstack((self.pareto_solutions, solutions_array))
+        else:
+            combined_objectives = objectives_array
+            combined_solutions = solutions_array
 
-        for i, obj_i in enumerate(objectives_array):
-            for j, obj_j in enumerate(objectives_array):
-                if i != j and self.dominates(obj_j, obj_i):
-                    pareto_mask[i] = False
-                    break
+        best_obj, best_sol = self._calculate_non_dominated(
+            combined_objectives, combined_solutions
+        )
 
-        self.pareto_front = objectives_array[pareto_mask]
-        self.pareto_solutions = solutions_array[pareto_mask]
+        self.pareto_front = best_obj
+        self.pareto_solutions = best_sol
+        self.pareto_history.append((best_obj.copy(), best_sol.copy()))
 
     def update_history(self, current_objectives: Optional[np.ndarray] = None) -> None:
         """
@@ -249,10 +296,12 @@ class MultiObjectiveProblem(Problem):
         :param current_objectives: Current population objectives (optional)
         :type current_objectives: Optional[np.ndarray]
         """
-        metrics = {"n_pareto": len(self.pareto_front), "generation": len(self.history)}
-
-        metrics["pareto_spread"] = np.mean(np.var(self.pareto_front, axis=0))
-        metrics["nd_ratio"] = len(self.pareto_front) / len(current_objectives)
+        metrics = {
+            "generation": len(self.history),
+            "pareto": self.pareto_solutions.copy(),
+            "pareto_spread": np.mean(np.var(self.pareto_front, axis=0)),
+            "nd_ratio": len(self.pareto_front) / len(current_objectives),
+        }
 
         self.history.append(metrics)
 
@@ -263,24 +312,22 @@ class MultiObjectiveProblem(Problem):
         :return: Result object
         :rtype: MultiObjectiveResult
         """
-        if self.all_objectives:
-            self.update_pareto_front(self.all_objectives, self.all_solutions)
+        final_front, final_sols = self.true_pareto_front
 
         metrics = {
-            "n_pareto_solutions": len(self.pareto_front),
+            "n_pareto_solutions": len(final_front),
             "pareto_spread": (
-                np.mean(np.var(self.pareto_front, axis=0))
-                if self.pareto_front
-                else None
+                np.mean(np.var(final_front, axis=0)) if np.any(final_front) else None
             ),
+            "history_length": len(self.pareto_history),
         }
 
         return MultiObjectiveResult(
             problem_name=self.__class__.__name__,
-            best_fitness=self.pareto_front,
-            best_solution=self.pareto_solutions,
+            best_fitness=final_front,
+            best_solution=final_sols,
             evaluations_used=self.evaluations_count,
-            pareto_front=self.pareto_front,
+            pareto_front=final_front,
             metrics=metrics,
         )
 
@@ -301,9 +348,9 @@ class MultiObjectiveProblem(Problem):
         scatter.add(pareto, color="blue", label="Obtained")
 
         if show_true_front and hasattr(self, "get_true_pareto_front"):
-            true_font = self.get_true_pareto_front()
-            if true_font is not None:
-                scatter.add(true_font, color="red", label="True Front", alpha=0.5)
+            true_front = self.get_true_pareto_front()
+            if true_front is not None:
+                scatter.add(true_front, color="red", label="True Front", alpha=0.5)
 
         scatter.show()
 
@@ -491,6 +538,7 @@ class PymooProblem(MultiObjectiveProblem):
         self.n_var = self.pymoo_problem.n_var
         self.lower_bound = self.pymoo_problem.xl
         self.upper_bound = self.pymoo_problem.xu
+        self.minimize = True
 
     def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
         """
@@ -506,7 +554,7 @@ class PymooProblem(MultiObjectiveProblem):
         if solution.ndim == 1:
             solution = solution.reshape(1, -1)
 
-        return self.pymoo_problem.evaluate(solution)
+        return self.pymoo_problem.evaluate(solution).squeeze()
 
     def get_bounds(self) -> List[Tuple[float, float]]:
         """
@@ -531,4 +579,5 @@ class PymooProblem(MultiObjectiveProblem):
         :return: True Pareto front or None
         :rtype: Optional[np.ndarray]
         """
+        return self.pymoo_problem.pareto_front(n_points)
         return self.pymoo_problem.pareto_front(n_points)
