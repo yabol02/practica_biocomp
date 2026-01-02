@@ -4,6 +4,8 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 from pyswarms.single import GlobalBestPSO
 
+from classes.population import Population
+
 from .configurations import ProblemConfig
 from .individual import Individual
 from .results import (MultiObjectiveResult, OptimizationResult,
@@ -370,3 +372,89 @@ class TSProblem(SingleObjectiveProblem):
 
     def get_aco_results(self):
         raise NotImplementedError("ACO format conversion not implemented yet.")
+
+class TSProblemDistance(SingleObjectiveProblem):
+    """Traveling Salesman Problem (TSP). The fitness function is the total distance of the path. Is always a closed path."""
+
+    def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]], minimize: bool = True):
+        super().__init__(config, minimize)
+        self.cities = np.asanyarray(cities, dtype=np.float64)
+        self.n_cities = self.cities.shape[0]
+        self.dist_matrix = self._compute_distance_matrix()
+        self.mean_history: List = []
+        self.best_history: List = []
+        self.worst_history: List = []
+
+    def get_bounds(self) -> Tuple[int, int]:
+        """
+        In TSP by permutation, bounds are not used the same way as in continuous problems,
+        but it is defined the range of valid indices for compatibility.
+        """
+        return (0, self.n_cities - 1)
+
+    def _compute_distance_matrix(self) -> np.ndarray:
+        """
+        Compute distance matrix between all the cities.
+
+        :return: Pairwise distance matrix between cities with shape (n_cities, n_cities)
+        :rtype: numpy.ndarray[np.float64]
+        """
+        coords = np.array(self.cities)
+        diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+        return np.sqrt(np.sum(diff**2, axis=-1))
+
+    def _sol_distance(self, solution: np.ndarray) -> float:
+        """
+        Compute the total length of a path defined by an ordered list of cities.
+
+        :param solution: Ordered array of city indices defining the path.
+        :type solution: numpy.ndarray
+        :param closed: Whether to close the path into a cycle.
+        :type closed: bool
+        :return: Total path length.
+        :rtype: float
+        """
+        solution = np.asanyarray(solution)
+
+        if not np.all((0 <= solution) & (solution < self.n_cities)):
+            raise ValueError("Solution contains invalid city index.")
+
+        if len(solution) != self.n_cities:
+            raise ValueError("Solution must include all cities exactly once.")
+
+        from_cities = solution[:-1]
+        to_cities = solution[1:]
+
+        total = self.dist_matrix[from_cities, to_cities].sum()
+        # Closing the path
+        total += self.dist_matrix[solution[-1], solution[0]]
+
+        return float(total)
+
+    def _fitness_function(
+        self, solution: np.ndarray
+    ) -> float:
+        """
+        Fitness function for TSP: inverse of path length.
+
+        :param solution: Ordered list of city indices defining the path.
+        :type solution: np.ndarray
+        :param closed_path: Whether the path is closed (cycle) or open.
+        :type closed_path: bool
+        :return: Fitness value (inverse of path length).
+        :rtype: float
+        """
+        return self._sol_distance(solution,)
+    
+    def update_history(self, population: Population) -> None:
+        """
+        Update history with current best fitness.
+
+        :param current_best: Best fitness in current generation
+        :type current_best: float
+        """
+        stats = population.get_stats
+        self.history.append(population.best_individual.fitness)
+        self.mean_history.append(stats.get("mean"))
+        self.best_history.append(stats.get("best"))
+        self.worst_history.append(stats.get("worst"))

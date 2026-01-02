@@ -64,6 +64,26 @@ class Population:
         else:
             self._best_individual = max(self.individuals, key=lambda ind: ind.fitness)
         return self._best_individual
+    
+    @property
+    def get_stats(self) -> dict:
+        """
+        Returns a dict with the mean, best and worst fitness of the population.
+
+        :return: Dictionary with mean, best and worst fitness
+        :rtype: dict
+        :raises ValueError: If population is empty
+        """
+        if not self.individuals:
+            raise ValueError("Population is empty")
+        
+        fitness_values = np.array([ind.fitness for ind in self.individuals])
+        return {
+            "mean": np.mean(fitness_values),
+            "best": np.min(fitness_values) if self.minimize else np.max(fitness_values),
+            "worst": np.max(fitness_values) if self.minimize else np.min(fitness_values),
+        }
+
 
     @property
     def bounds(self) -> Optional[List]:
