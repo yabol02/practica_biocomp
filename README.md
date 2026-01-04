@@ -34,35 +34,35 @@ Este repositorio contiene la entrega práctica de la asignatura **Computación E
 
 ### ✨ Características principales
 
-- 🧬 **Framework modular de Algoritmos Genéticos** implementado desde cero
+- **Framework modular de Algoritmos Genéticos** implementado desde cero
   - Arquitectura orientada a objetos altamente extensible
   - Soporte completo para problemas mono y multi-objetivo
-  - Operadores genéticos intercambiables (selección, cruce, mutación, reemplazo)
+  - Operadores genéticos intercambiables (inicialización, selección, cruce, mutación y reemplazo)
 
-- 🎯 **Problemas de optimización implementados**
+- **Problemas de optimización implementados**
   - **Mono-objetivo**: Himmelblau, TSP clásico
   - **Multi-objetivo**: ZDT1, ZDT3, MW7, TSP multi-objetivo (distancia + tiempo)
   - Integración con benchmark problems de Pymoo
 
-- 📊 **Sistema completo de experimentación**
+- **Sistema completo de experimentación**
   - Tracking automático de evaluaciones
   - Exportación de resultados (CSV, gráficas)
   - Notebooks Jupyter con análisis reproducibles
-  - Comparación con métodos tradicionales (PSO, Scipy)
+  - Comparación con métodos tradicionales (PSO, Scipy, ACO, NSGA-II)
 
-- 🔬 **Algoritmos multi-objetivo**
-  - Dominancia de Pareto y fronts no-dominados
+- **Algoritmos multi-objetivo**
+  - Dominancia de Pareto y frentes no-dominados
   - NSGA-II (Non-dominated Sorting Genetic Algorithm II)
   - Métricas de calidad (spread, ratio de no-dominancia)
   - Visualización de frentes de Pareto
 
 ### 📚 Contenido del proyecto
 
-El proyecto abarca implementaciones desde cero (from scratch) de:
+El proyecto abarca implementaciones desde cero de:
 * **Algoritmos Genéticos (GA):** Selección, cruce, mutación y reemplazo
 * **Optimización Mono-objetivo:** Función de Himmelblau y Problema del Viajante (TSP)
 * **Optimización Multi-objetivo (MOEA):** Implementación de frentes de Pareto, métricas de diversidad y convergencia (ZDT1, ZDT3, MW7)
-* **Comparativas:** Benchmarking contra PySwarms (PSO), Scipy (métodos clásicos), Pymoo (MOEA) y ACO (implementación propia del repositorio)
+* **Comparativas:** Benchmarking contra PySwarms (PSO), Scipy (métodos clásicos), ACO (mejora respecto de ACO de Pypi, en el propio repositorio) y Pymoo (MOEA)
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
@@ -84,7 +84,7 @@ Este proyecto ha sido desarrollado usando **Python (>3.11)**.
 > curl -LsSf https://astral.sh/uv/install.sh | sh
 >
 > # En Windows
-> powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+> powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 > ```
 
 ### Dependencias principales
@@ -103,7 +103,8 @@ El proyecto utiliza las siguientes librerías:
 | `tqdm` | ≥4.67.1 | Barras de progreso |
 | `ipykernel` | ≥7.1.0 | Soporte para Jupyter notebooks |
 
-> **Nota**: Todas las dependencias se instalan automáticamente con `uv sync`.
+> [!TIP]
+> Todas las dependencias se instalan automáticamente con `uv sync`.
 
 ### Instalación
 
@@ -137,24 +138,24 @@ Prueba rápidamente el framework con un ejemplo mínimo:
 from genetic.algorithms import GeneticAlgorithmSO
 from genetic.configurations import ProblemConfig
 from genetic.problems import HimmelblauProblem
-from genetic.initialization import UniformInitialization
+from genetic.initialization import RandomInitialization
 from genetic.selection import TournamentSelection
 from genetic.crossover import BlendCrossover
 from genetic.mutation import UniformMutation
-from genetic.replacement import ElitistReplacement
+from genetic.replacement import GenerationalReplacement
 
 # Configurar y ejecutar
-config = ProblemConfig(max_evaluations=1000, seed=42)
+config = ProblemConfig(max_evaluations=3500, seed=42, output_dir="results/himmelblau")
 problem = HimmelblauProblem(config)
 
 ga = GeneticAlgorithmSO(
     problem=problem,
     population_size=30,
-    initialization=UniformInitialization(),
+    initialization=RandomInitialization(),
     selection=TournamentSelection(tournament_size=3),
     crossover=BlendCrossover(alpha=0.5),
-    mutation=UniformMutation(mutation_rate=0.1, bounds=problem.get_bounds()),
-    replacement=ElitistReplacement(elite_size=2)
+    mutation=UniformMutation(mutation_rate=0.3, bounds=problem.get_bounds()),
+    replacement=GenerationalReplacement(elite_size=2)
 )
 
 result = ga.run()
@@ -162,7 +163,7 @@ print(f"✓ Mejor fitness: {result.best_fitness:.6f}")
 print(f"✓ Solución: {result.best_solution}")
 ```
 
-Para explorar los experimentos completos, consulta los notebooks en el directorio `notebooks/`.
+Para explorar los experimentos completos, consulta los notebooks en el directorio [notebooks](./notebooks/)
 
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
