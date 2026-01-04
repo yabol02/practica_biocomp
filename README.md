@@ -163,7 +163,7 @@ print(f"✓ Mejor fitness: {result.best_fitness:.6f}")
 print(f"✓ Solución: {result.best_solution}")
 ```
 
-Para explorar los experimentos completos, consulta los notebooks en el directorio [notebooks](./notebooks/).
+Para explorar los experimentos completos, consulta los notebooks en el directorio [`notebooks/`](./notebooks/).
 
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
@@ -175,7 +175,7 @@ Este proyecto implementa y compara diferentes enfoques de optimización bioinspi
 
 ### Algoritmos implementados
 
-Implementación completa de algoritmos genéticos desde cero en el módulo [genetic/](./genetic/) con:
+Implementación completa de algoritmos genéticos desde cero en el módulo [`genetic/`](./genetic/) con:
 - **Inicialización**: Aleatoria uniforme para individuos reales y permutaciones
 - **Selección**: Torneo, selección ponderada, selección multi-objetivo (NSGA-II)
 - **Operadores de cruce**:
@@ -204,7 +204,7 @@ Implementación completa de algoritmos genéticos desde cero en el módulo [gene
 - Representación mediante permutaciones
 - Distancia euclidiana entre ciudades
 - Métodos de comparación:
-  - Algoritmo de la colonia de hormigas (implementación propia en [aco.py](./aco.py))
+  - Algoritmo de la colonia de hormigas (implementación propia en [`aco.py`](./aco.py))
 
 
 #### Optimización multi-objetivo
@@ -304,11 +304,13 @@ Framework completo y modular para algoritmos genéticos:
   - Budget de evaluaciones
   - Directorio de salida de resultados
 
-  - Sistema de resultados para unificar las interfaces
+- Sistema de resultados para unificar las interfaces
   - **`SingleObjectiveResult`**: Para problemas mono-objetivo
   - **`MultiObjectiveResult`**: Para problemas multi-objetivo
   - Exportación a CSV
   - Visualización de convergencia/Pareto
+
+- **`GeneticAlgorithmSO`** y **`GeneticAlgorithmMO`**: Cuentan con la lógica principal del algoritmo evolutivo.
 
 ### Características avanzadas
 
@@ -323,151 +325,28 @@ Framework completo y modular para algoritmos genéticos:
 <a id="ejecucion-del-codigo"></a>
 ## 🐍 Ejecución del código
 
-### Ejemplo básico: Optimización de Himmelblau
+Los notebooks en [`notebooks/`](./notebooks/) contienen experimentos completos y reproducibles:
 
-```python
-from genetic.algorithms import GeneticAlgorithmSO
-from genetic.configurations import ProblemConfig
-from genetic.crossover import BlendCrossover
-from genetic.initialization import UniformInitialization
-from genetic.mutation import UniformMutation
-from genetic.problems import HimmelblauProblem
-from genetic.replacement import ElitistReplacement
-from genetic.selection import TournamentSelection
+**Notebooks disponibles**:
+  - [`himmelblau.ipynb`](./notebooks/himmelblau.ipynb): Comparación GA vs PSO vs métodos tradicionales
+  - [`tsp.ipynb`](./notebooks/tsp.ipynb): Resolución del TSP con GA en diferentes instancias
+  - [`zdt1.ipynb`](./notebooks/zdt1.ipynb), [`zdt3.ipynb`](./notebooks/zdt3.ipynb): Optimización multi-objetivo ZDT
+  - [`mw7.ipynb`](./notebooks/mw7.ipynb), [`mw14.ipynb](./notebooks/mw14.ipynb): Problema MW7 con análisis de Pareto
+  - [`mo_tsp.ipynb`](./notebooks/mo_tsp.ipynb): TSP bi-objetivo (distancia vs tiempo)
 
-# Configurar el problema
-config = ProblemConfig(
-    max_evaluations=5000,
-    seed=42,
-    output_dir="results/himmelblau"
-)
-problem = HimmelblauProblem(config)
-
-# Configurar el algoritmo genético
-ga = GeneticAlgorithmSO(
-    problem=problem,
-    population_size=50,
-    initialization=UniformInitialization(),
-    selection=TournamentSelection(tournament_size=3),
-    crossover=BlendCrossover(alpha=0.5),
-    mutation=UniformMutation(mutation_rate=0.1, bounds=problem.get_bounds()),
-    replacement=ElitistReplacement(elite_size=2)
-)
-
-# Ejecutar
-result = ga.run()
-print(f"Mejor solución: {result.best_solution}")
-print(f"Fitness: {result.best_fitness}")
-
-# Guardar resultados
-result.save_csv("results/himmelblau/history.csv")
-result.plot_convergence().savefig("results/himmelblau/convergence.png")
-```
-
-### Ejemplo: TSP con Algoritmo Genético
-
-```python
-from genetic.algorithms import GeneticAlgorithmSO
-from genetic.configurations import ProblemConfig
-from genetic.crossover import OrderCrossover
-from genetic.initialization import PermutationInitialization
-from genetic.mutation import SwapMutation
-from genetic.problems import TSProblem
-from genetic.replacement import GenerationalReplacement
-from genetic.selection import TournamentSelection
-
-# Definir ciudades
-cities = [(0, 0), (1, 5), (5, 3), (8, 1), (4, 7)]
-
-# Configurar problema
-config = ProblemConfig(max_evaluations=10000, seed=42)
-problem = TSProblem(config, cities)
-
-# Configurar GA
-ga = GeneticAlgorithmSO(
-    problem=problem,
-    population_size=100,
-    initialization=PermutationInitialization(),
-    selection=TournamentSelection(tournament_size=5),
-    crossover=OrderCrossover(),
-    mutation=SwapMutation(mutation_rate=0.2),
-    replacement=GenerationalReplacement()
-)
-
-# Ejecutar
-result = ga.run()
-print(f"Mejor ruta: {result.best_solution}")
-print(f"Distancia total: {result.best_fitness}")
-```
-
-### Ejemplo: TSP con ACO
-
-```python
-from aco import AntColony
-
-
-```
-
-### Ejemplo: Optimización Multi-Objetivo (ZDT3)
-
-```python
-from genetic.algorithms import GeneticAlgorithmMO
-from genetic.configurations import ProblemConfig
-from genetic.crossover import BlendCrossover
-from genetic.initialization import UniformInitialization
-from genetic.mutation import UniformMutation
-from genetic.problems import PymooProblem
-from genetic.replacement import ElitistReplacement
-from genetic.selection import ParetoSelection
-
-# Configurar problema
-config = ProblemConfig(max_evaluations=25000, seed=42)
-problem = PymooProblem(config, problem_name="zdt3", n_var=30)
-
-# Configurar MOEA
-ga = GeneticAlgorithmMO(
-    problem=problem,
-    population_size=100,
-    initialization=UniformInitialization(),
-    selection=ParetoSelection(),
-    crossover=BlendCrossover(alpha=0.5),
-    mutation=UniformMutation(mutation_rate=0.05, bounds=problem.get_bounds()),
-    replacement=ElitistReplacement(elite_size=10)
-)
-
-# Ejecutar
-result = ga.run()
-
-# Visualizar frente de Pareto
-problem.plot_pareto_front(show_true_front=True, problem_name="ZDT3")
-
-# Acceder a soluciones
-print(f"Número de soluciones no-dominadas: {len(result.pareto_front)}")
-```
-
-### Uso de notebooks
-
-Los notebooks en `notebooks/` contienen experimentos completos y reproducibles:
-
-1. **Inicia Jupyter**:
-   ```bash
-   uv run jupyter notebook
-   ```
-
-2. **Notebooks disponibles**:
-   - `himmelblau.ipynb`: Comparación GA vs PSO vs métodos tradicionales
-   - `tsp.ipynb`: Resolución del TSP con GA en diferentes instancias
-   - `zdt1.ipynb`, `zdt3.ipynb`: Optimización multi-objetivo ZDT
-   - `mw7.ipynb`: Problema MW7 con análisis de Pareto
-   - `mo_tsp.ipynb`: TSP bi-objetivo (distancia vs tiempo)
-
-3. **Ejecuta las celdas** para reproducir los experimentos
 
 ### Comparación con métodos tradicionales
 
 Para problemas de referencia, puedes usar los métodos integrados:
 
 ```python
+from genetic.configurations import ProblemConfig
+from genetic.problems import HimmelblauProblem
+
+config = ProblemConfig(max_evaluations=3500, seed=42, output_dir="results/himmelblau")
+
+problem = HimmelblauProblem(config)
+
 # Himmelblau con PySwarms (PSO)
 pso_result = problem.get_pyswarms_result(c1=0.5, c2=0.3, w=0.9)
 
@@ -496,9 +375,13 @@ class MiProblema(SingleObjectiveProblem):
         self.bounds = [(-10, 10), (-10, 10)]  # límites de variables
     
     def _fitness_function(self, solution: List) -> float:
-        """Define tu función objetivo aquí"""
+        """
+        Definición de la función objetivo: 
+
+        f(x, y) = 0.26·(x² + y²) - 0.48·x·y
+        """
         x, y = solution
-        return x**2 + y**2  # ejemplo: esfera
+        return 0.26 * (x**2 + y**2) - 0.48 * x * y  # Ejemplo: Función Matyas
     
     def get_bounds(self) -> List[Tuple[float, float]]:
         return self.bounds
@@ -516,7 +399,7 @@ class MiProblemaMO(MultiObjectiveProblem):
         self.bounds = [(0, 1)] * 5  # 5 variables en [0,1]
     
     def _fitness_function(self, solution: List) -> np.ndarray:
-        """Retorna un array con los valores de cada objetivo"""
+        """Devuelve un array con los valores de cada objetivo"""
         x = np.array(solution)
         f1 = np.sum(x**2)
         f2 = np.sum((x - 1)**2)
@@ -526,7 +409,9 @@ class MiProblemaMO(MultiObjectiveProblem):
         return self.bounds
 ```
 
-Luego úsalo como cualquier otro problema del framework.
+Luego úsalo como cualquier otro problema del framework. 
+
+Cada uno de los módulos de [`genetic/`](./genetic/) cuenta con la interfaz básica de cada uno de los operadores para poder implementar todos los necesarios.
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
@@ -575,23 +460,22 @@ Distribuido bajo la licencia MIT. Ve a [`LICENSE`](LICENSE) para mayor informaci
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
----
-
 ## 📖 Referencias
 
 ### Librerías y frameworks utilizados
-- **Pymoo**: [pymoo.org](https://pymoo.org/) - Framework multi-objetivo para Python
-- **PySwarms**: [pyswarms.readthedocs.io](https://pyswarms.readthedocs.io/) - Particle Swarm Optimization
-- **Scipy**: [scipy.org](https://scipy.org/) - Scientific computing library
-- **NumPy**: [numpy.org](https://numpy.org/) - Numerical computing
+- **NumPy**: https://numpy.org/ — Computación numérica en Python
+- **Pymoo**: https://pymoo.org/ — Framework de optimización multiobjetivo en Python
+- **PySwarms**: https://pyswarms.readthedocs.io/ — Particle Swarm Optimization en Python
+- **SciPy**: https://scipy.org/ — Biblioteca de computación científica en Python
 
 ### Algoritmos implementados
-- **Algoritmos Genéticos**: Goldberg, D.E. (1989). "Genetic Algorithms in Search, Optimization, and Machine Learning"
-- **NSGA-II**: Deb, K., et al. (2002). "A fast and elitist multiobjective genetic algorithm: NSGA-II"
+- **Algoritmos Genéticos**: Goldberg, D.E. (1989). *Genetic Algorithms in Search, Optimization and Machine Learning*
+- **NSGA-II**: Deb, K., Pratap, A., Agarwal, S. & Meyarivan, T. (2002). *A fast and elitist multiobjective genetic algorithm: NSGA-II*. IEEE Transactions on Evolutionary Computation, 6(2): 182-197. DOI: 10.1109/4235.996017
 
 ### Problemas benchmark
-- **ZDT Test Suite**: Zitzler, E., Deb, K., & Thiele, L. (2000). "Comparison of Multiobjective Evolutionary Algorithms"
-- **MW Test Suite**: Ma, Z., & Wang, Y. (2019). "Evolutionary Constrained Multiobjective Optimization"
+- **ZDT Test Suite**: Zitzler, E., Deb, K., & Thiele, L. (2000). *Comparison of Multiobjective Evolutionary Algorithms: Empirical Results*. Evolutionary Computation, 8(2), 173–195
+- **MW Test Suite**: Ma, Z., & Wang, Y. (2019). *Evolutionary Constrained Multiobjective Optimization: Test Suite Construction and Performance Comparisons*. IEEE Transactions on Evolutionary Computation, 23(6), 972–986
+
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
