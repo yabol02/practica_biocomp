@@ -4,8 +4,8 @@
 
   [![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
   [![Dependency Manager](https://img.shields.io/badge/uv-astral-purple?logo=python&logoColor=white)](https://docs.astral.sh/uv/)
-  [![NumPy](https://img.shields.io/badge/NumPy-2.3%2B-013243?logo=numpy&logoColor=white)](https://numpy.org/)
-  [![Pymoo](https://img.shields.io/badge/Pymoo-0.6%2B-orange)](https://pymoo.org/)
+  [![Code Style Black](https://img.shields.io/badge/Code%20Style-Black-black)](https://github.com/psf/black)
+  [![Imports isort](https://img.shields.io/badge/Imports-isort-blue)](https://pycqa.github.io/isort/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/Status-En_Desarrollo-orange)]()
   <p align="center">
@@ -38,12 +38,6 @@ Este repositorio contiene la entrega práctica de la asignatura **Computación E
   - Arquitectura orientada a objetos altamente extensible
   - Soporte completo para problemas mono y multi-objetivo
   - Operadores genéticos intercambiables (selección, cruce, mutación, reemplazo)
-
-- 🐜 **Optimización por Colonia de Hormigas (ACO)** con mejoras avanzadas
-  - Estrategia ACS con regla pseudo-aleatoria
-  - Búsqueda local 2-opt para refinamiento
-  - Actualización elite de feromonas
-  - Detección y recuperación de estancamiento
 
 - 🎯 **Problemas de optimización implementados**
   - **Mono-objetivo**: Himmelblau, TSP clásico
@@ -169,11 +163,7 @@ print(f"✓ Mejor fitness: {result.best_fitness:.6f}")
 print(f"✓ Solución: {result.best_solution}")
 ```
 
-O explora los notebooks interactivos:
-
-```bash
-uv run jupyter notebook notebooks/
-```
+Para explorar los experimentos completos, consulta los notebooks en el directorio `notebooks/`.
 
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
@@ -198,14 +188,6 @@ Implementación completa desde cero (`genetic/`) con:
   - `SwapMutation`: Intercambio de genes para permutaciones
   - `InversionMutation`: Inversión de subsecuencias
 - **Reemplazo**: Elitismo, reemplazo generacional, reemplazo steady-state
-
-#### 🐜 Optimización por Colonia de Hormigas (ACO)
-Implementación avanzada para TSP (`aco.py`) con:
-- **Estrategia ACS (Ant Colony System)**: Regla pseudo-aleatoria proporcional
-- **Búsqueda local 2-opt**: Optimización post-construcción del tour
-- **Actualización elite**: Solo las mejores hormigas depositan feromonas
-- **Recuperación de estancamiento**: Reinicio automático de feromonas
-- **Paralelización**: Uso de threads para acelerar la búsqueda
 
 ### Problemas de optimización
 
@@ -268,21 +250,21 @@ Los experimentos se encuentran en el directorio `notebooks/`:
 
 ```
 practica_biocomp/
-├── genetic/                    # 🧬 Módulo principal de Algoritmos Genéticos
+├── genetic/                    # Módulo principal de Algoritmos Genéticos
 │   ├── __init__.py            # Exporta clases principales del módulo
-│   ├── algorithms.py          # Clases GeneticAlgorithmSO y GeneticAlgorithmMO
-│   ├── configurations.py      # Configuración de problemas (ProblemConfig)
-│   ├── crossover.py           # Operadores de cruce (OrderCrossover, BlendCrossover)
-│   ├── individual.py          # Clases Individual, RealIndividual, PermutationIndividual
+│   ├── algorithms.py          # Implementación de GA mono y multi-objetivo
+│   ├── configurations.py      # Configuración de problemas
+│   ├── crossover.py           # Operadores de cruce
+│   ├── individual.py          # Representación de individuos
 │   ├── initialization.py      # Estrategias de inicialización de población
-│   ├── mutation.py            # Operadores de mutación (Uniform, Swap, Inversion)
-│   ├── population.py          # Clase Population y operaciones sobre poblaciones
-│   ├── problems.py            # Problemas: Himmelblau, TSP, Pymoo, MO-TSP
-│   ├── replacement.py         # Estrategias de reemplazo (Elitism, Generational)
-│   ├── results.py             # Clases para almacenar resultados de optimización
-│   └── selection.py           # Métodos de selección (Tournament, Pareto, NSGA-II)
+│   ├── mutation.py            # Operadores de mutación
+│   ├── population.py          # Clase Population y operaciones
+│   ├── problems.py            # Problemas de optimización
+│   ├── replacement.py         # Estrategias de reemplazo
+│   ├── results.py             # Almacenamiento de resultados
+│   └── selection.py           # Métodos de selección
 │
-├── notebooks/                  # 📊 Jupyter Notebooks con experimentos
+├── notebooks/                  # Jupyter Notebooks con experimentos
 │   ├── himmelblau.ipynb       # Optimización de Himmelblau (GA vs PSO vs Scipy)
 │   ├── tsp.ipynb              # TSP con Algoritmo Genético
 │   ├── zdt1.ipynb             # Problema benchmark ZDT1
@@ -294,17 +276,17 @@ practica_biocomp/
 │   ├── AG alumno.ipynb        # Desarrollo y pruebas de AG
 │   └── TSP_development.ipynb  # Desarrollo y depuración de TSP
 │
-├── diagrams/                   # 📐 Diagramas y visualizaciones
+├── diagrams/                   # Diagramas y visualizaciones
 │   └── classes.excalidraw     # Diagrama de arquitectura de clases
 │
-├── aco.py                      # 🐜 Implementación de ACO para TSP
-├── main.py                     # 🚀 Script de ejemplo de uso
-├── pyproject.toml             # ⚙️ Configuración del proyecto y dependencias
-├── uv.lock                    # 🔒 Lock file de dependencias (uv)
-├── .python-version            # 🐍 Versión de Python requerida
-├── CHANGELOG.md               # 📝 Historial de cambios
-├── LICENSE                    # 📄 Licencia MIT
-└── README.md                  # 📖 Este archivo
+├── aco.py                      # Implementación de ACO para TSP
+├── main.py                     # Script de ejemplo de uso
+├── pyproject.toml             # Configuración del proyecto y dependencias
+├── uv.lock                    # Lock file de dependencias (uv)
+├── .python-version            # Versión de Python requerida
+├── CHANGELOG.md               # Historial de cambios
+├── LICENSE                    # Licencia MIT
+└── README.md                  # Este archivo
 ```
 
 ### Componentes principales
@@ -354,20 +336,6 @@ Framework completo y modular para algoritmos genéticos:
 
 <a id="ejecucion-del-codigo"></a>
 ## 🐍 Ejecución del código
-
-### Verificación de la instalación
-
-Tras ejecutar `uv sync`, verifica que todo funciona correctamente:
-
-```bash
-# Activar el entorno virtual
-source .venv/bin/activate  # En Linux/macOS
-# o
-.venv\Scripts\activate     # En Windows
-
-# Verificar importaciones
-python -c "from genetic import GeneticAlgorithmSO; print('✓ Módulo genetic instalado correctamente')"
-```
 
 ### Ejemplo básico: Optimización de Himmelblau
 
@@ -601,55 +569,23 @@ Luego úsalo como cualquier otro problema del framework.
 <a id="roadmap"></a>
 ## 🪙 Roadmap
 
-### Algoritmo Genético - Core
 - [x] Creación de la población inicial
-- [x] Ordenación de población por fitness
-- [x] Selección (Torneo, Ponderada)
-- [x] Mutación (Uniforme, Swap, Inversión)
-- [x] Cruce (Blend, Order)
-- [x] Evolución y reemplazo (Elitismo, Generacional)
-- [x] Soporte para individuos reales y permutaciones
-
-### Optimización Mono-Objetivo
-- [x] TSP con representación por permutaciones
-- [x] Tres tipos de mutaciones (Uniform, Swap, Inversion)
-- [x] Optimización de Himmelblau con GA
-- [x] Optimización de Himmelblau con PySwarms (PSO)
-- [x] Optimización de Himmelblau con Scipy (L-BFGS-B, SLSQP, Nelder-Mead)
-- [x] Comparativa de métodos en Himmelblau
-- [x] Implementación de ACO para TSP
-- [x] ACO con búsqueda local 2-opt
-- [x] ACO con estrategia elite y recuperación de estancamiento
-
-### Optimización Multi-Objetivo (MOEA)
-- [x] Implementación de frentes de Pareto
-- [x] Selección basada en dominancia (Tournament Pareto)
-- [x] Selección NSGA-II (Non-dominated Sorting)
-- [x] Integración con Pymoo para problemas benchmark
-- [x] MO: Optimización de ZDT1
+- [x] Ordenación
+- [x] Selección
+- [x] Mutación
+- [x] Cruce
+- [x] Evolución
+- [x] TSP
+- [x] Tres tipos de mutaciones
+- [x] Optimización final de Himmelblau
+- [ ] Optimización final de Himmelblau con onlyone::True
 - [x] MO: Optimización de ZDT3
 - [x] MO: Optimización de MW7
-- [x] MO: Implementación de TSP Multi-Objetivo
-- [x] MO: TSP con elevación basada en ruido Perlin
-- [x] MO: Visualización de frentes de Pareto
-
-### Análisis y Comparativas
-- [x] Sistema de tracking de evaluaciones
-- [x] Exportación de resultados a CSV
-- [x] Gráficas de convergencia
-- [x] Gráficas de frentes de Pareto
-- [ ] MO: Cálculo de métricas de calidad (Hypervolume, IGD, Spread)
-- [ ] MO: Comparativa exhaustiva con NSGA-II de Pymoo
-- [ ] MO: Comparativa con MOEAD de Pymoo
-- [ ] MO: Optimización de MW14 (si requerido)
-
-### Documentación y Presentación
-- [x] README completo con guías de uso
-- [x] Documentación de API (docstrings)
-- [x] Notebooks de experimentación
-- [x] Ejemplos de uso para cada problema
-- [ ] Final: Preparación de presentación
-- [ ] Final: Análisis de resultados y conclusiones
+- [ ] MO: Optimización de MW14
+- [x] MO: Optimización de TSP MO
+- [ ] MO: Comparativas con NSGA
+- [ ] MO: Implementación y cálculo de métricas
+- [ ] Final: presentación
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
