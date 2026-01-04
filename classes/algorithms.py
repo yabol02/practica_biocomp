@@ -126,79 +126,8 @@ class GeneticAlgorithmSO:
             f"rep={self.replacement.__class__.__name__}"
             f")"
         )
-
-class GeneticAlgorithmTSP(GeneticAlgorithmSO):
-    """Custom Genetic Algorithm with overridable run method."""
-
-    def run(self) -> SingleObjectiveResult:
-        """
-        Execute genetic algorithm.
-
-        :return: Optimization result
-        :rtype: SingleObjectiveResult
-        """
-        self.problem.config.initialize_random_state()
-
-        # Initialize population (may use evaluation!)
-        bounds = self.problem.get_bounds()
-        # TODO: Add defaults args to the Initialization class and use here, e.g., if no initialization is provided, use something like:
-        # population = Population(
-        #     individuals=[
-        #         RealIndividual(bounds=bounds) for _ in range(self.population_size)
-        #     ],
-        #     minimize=True,
-        # )
-        population: Population = self.initialization(
-            self.population_size, bounds, self.problem
-        )
-
-        generation = 0
-
-        # Main loop
-        while not self.problem.reached_budget():
-            # Evaluate population
-            population.evaluate_population(self.problem.evaluate)
-
-            # Track best
-            best = population.best_individual
-            self.problem.update_history(population)
-
-            # Print progress
-            if generation % 10 == 0:
-                print(
-                    f"Gen {generation}: Evals={self.problem.evaluations_count}/{self.problem.config.max_evaluations}, "
-                    f"Best distance={self.problem._sol_distance(best.genotype, closed = True):.6f}",
-                    f"Best={best.fitness:.6f}, Solution={[f'{x:.4f}' for x in best.genotype]}",
-                    
-                )
-
-            # Check budget
-            if self.problem.reached_budget():
-                break
-
-            parents = population
-
-            # Selection
-            selected = self.selection(population, self.population_size)
-
-            # Crossover
-            offspring = self.crossover(selected)
-
-            # Mutation
-            offspring = self.mutation(offspring)
-
-            # Replace population
-            population = self.replacement(parents, offspring)
-            generation += 1
-
-        # Final evaluation
-        population.evaluate_population(self.problem.evaluate)
-        best = population.best_individual
-        self.problem.update_history(best.fitness)
-
-        return self.problem.get_result()
     
-class GeneticAlgorithmTSPTrace(GeneticAlgorithmTSP):
+class GeneticAlgorithmTSPTrace(GeneticAlgorithmSO):
     """Custom Genetic Algorithm with overridable run method."""
     def __init__(self, *args, **kwargs):
         super(GeneticAlgorithmTSPTrace, self).__init__(*args, **kwargs)
@@ -298,8 +227,7 @@ class GeneticAlgorithmTSPTrace(GeneticAlgorithmTSP):
             if generation % 10 == 0:
                 print(
                     f"Gen {generation}: Evals={self.problem.evaluations_count}/{self.problem.config.max_evaluations}, "
-                    f"Best={best.fitness:.6f}, Solution={[f'{x:.4f}' for x in best.genotype]}",
-                    
+                    f"Best={best.fitness:.6f}, Solution={[f'{x:.4f}' for x in best.genotype]}"
                 )
 
             # Check budget

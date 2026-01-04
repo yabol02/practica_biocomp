@@ -66,7 +66,7 @@ class Population:
         return self._best_individual
     
     @property
-    def get_stats(self) -> dict:
+    def stats(self) -> dict:
         """
         Returns a dict with the mean, best and worst fitness of the population.
 

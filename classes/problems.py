@@ -374,7 +374,7 @@ class TSProblem(SingleObjectiveProblem):
         raise NotImplementedError("ACO format conversion not implemented yet.")
 
 class TSProblemDistance(SingleObjectiveProblem):
-    """Traveling Salesman Problem (TSP). The fitness function is the total distance of the path. Is always a closed path."""
+    """Traveling Salesman Problem (TSP). The fitness function is the total distance of the path, which is always a closed path."""
 
     def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]], minimize: bool = True):
         super().__init__(config, minimize)
@@ -435,26 +435,28 @@ class TSProblemDistance(SingleObjectiveProblem):
         self, solution: np.ndarray
     ) -> float:
         """
-        Fitness function for TSP: inverse of path length.
-
+         Fitness function for TSP: total path distance.
         :param solution: Ordered list of city indices defining the path.
         :type solution: np.ndarray
-        :param closed_path: Whether the path is closed (cycle) or open.
-        :type closed_path: bool
-        :return: Fitness value (inverse of path length).
-        :rtype: float
+        :return: Total path distance for the given tour (lower is better).
         """
-        return self._sol_distance(solution,)
+        return self._sol_distance(solution)
     
     def update_history(self, population: Population) -> None:
         """
-        Update history with current best fitness.
-
-        :param current_best: Best fitness in current generation
-        :type current_best: float
+        Update history statistics from the current population.
+        :param population: Current population containing individuals and their fitness statistics.
+        :type population: Population
         """
-        stats = population.get_stats
+        stats = population.stats
         self.history.append(population.best_individual.fitness)
         self.mean_history.append(stats.get("mean"))
         self.best_history.append(stats.get("best"))
         self.worst_history.append(stats.get("worst"))
+
+    def reset(self) -> None:
+        """Reset optimization history for this problem instance."""
+        super().reset()
+        self.mean_history.clear()
+        self.best_history.clear()
+        self.worst_history.clear()
