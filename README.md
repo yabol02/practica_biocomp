@@ -62,8 +62,7 @@ El proyecto abarca implementaciones desde cero (from scratch) de:
 * **Algoritmos Genéticos (GA):** Selección, cruce, mutación y reemplazo
 * **Optimización Mono-objetivo:** Función de Himmelblau y Problema del Viajante (TSP)
 * **Optimización Multi-objetivo (MOEA):** Implementación de frentes de Pareto, métricas de diversidad y convergencia (ZDT1, ZDT3, MW7)
-
-* **Comparativas:** Benchmarking contra PySwarms (PSO), Scipy (métodos clásicos) y Pymoo (MOEA)
+* **Comparativas:** Benchmarking contra PySwarms (PSO), Scipy (métodos clásicos), Pymoo (MOEA) y ACO (implementación propia del repositorio)
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
@@ -127,7 +126,7 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
     source .venv/bin/activate  # Linux/macOS
     # o .venv\Scripts\activate en Windows
     
-    python -c "from genetic import GeneticAlgorithmSO; print('✓ Instalación correcta')"
+    python -c "from genetic.algorithms import GeneticAlgorithmSO; print('✓ Instalación correcta')"
     ```
 
 ### ⚡ Quick Start
@@ -135,14 +134,14 @@ Una vez instalado `uv`, la configuración es automática. Desde la raíz del rep
 Prueba rápidamente el framework con un ejemplo mínimo:
 
 ```python
-from genetic import GeneticAlgorithmSO
+from genetic.algorithms import GeneticAlgorithmSO
 from genetic.configurations import ProblemConfig
 from genetic.problems import HimmelblauProblem
 from genetic.initialization import UniformInitialization
 from genetic.selection import TournamentSelection
 from genetic.crossover import BlendCrossover
 from genetic.mutation import UniformMutation
-from genetic.replacement import ElitismReplacement
+from genetic.replacement import ElitistReplacement
 
 # Configurar y ejecutar
 config = ProblemConfig(max_evaluations=1000, seed=42)
@@ -155,7 +154,7 @@ ga = GeneticAlgorithmSO(
     selection=TournamentSelection(tournament_size=3),
     crossover=BlendCrossover(alpha=0.5),
     mutation=UniformMutation(mutation_rate=0.1, bounds=problem.get_bounds()),
-    replacement=ElitismReplacement(elite_size=2)
+    replacement=ElitistReplacement(elite_size=2)
 )
 
 result = ga.run()
@@ -186,7 +185,6 @@ Implementación completa desde cero (`genetic/`) con:
 - **Mutaciones**:
   - `UniformMutation`: Mutación uniforme para variables reales
   - `SwapMutation`: Intercambio de genes para permutaciones
-  - `InversionMutation`: Inversión de subsecuencias
 - **Reemplazo**: Elitismo, reemplazo generacional, reemplazo μ+λ (mu+lambda)
 
 ### Problemas de optimización
@@ -346,7 +344,7 @@ from genetic.crossover import BlendCrossover
 from genetic.initialization import UniformInitialization
 from genetic.mutation import UniformMutation
 from genetic.problems import HimmelblauProblem
-from genetic.replacement import ElitismReplacement
+from genetic.replacement import ElitistReplacement
 from genetic.selection import TournamentSelection
 
 # Configurar el problema
@@ -365,7 +363,7 @@ ga = GeneticAlgorithmSO(
     selection=TournamentSelection(tournament_size=3),
     crossover=BlendCrossover(alpha=0.5),
     mutation=UniformMutation(mutation_rate=0.1, bounds=problem.get_bounds()),
-    replacement=ElitismReplacement(elite_size=2)
+    replacement=ElitistReplacement(elite_size=2)
 )
 
 # Ejecutar
@@ -431,8 +429,8 @@ from genetic.crossover import BlendCrossover
 from genetic.initialization import UniformInitialization
 from genetic.mutation import UniformMutation
 from genetic.problems import PymooProblem
-from genetic.replacement import ElitismReplacement
-from genetic.selection import NonDominatedSortingSelection
+from genetic.replacement import ElitistReplacement
+from genetic.selection import ParetoSelection
 
 # Configurar problema
 config = ProblemConfig(max_evaluations=25000, seed=42)
@@ -443,10 +441,10 @@ ga = GeneticAlgorithmMO(
     problem=problem,
     population_size=100,
     initialization=UniformInitialization(),
-    selection=NonDominatedSortingSelection(),
+    selection=ParetoSelection(),
     crossover=BlendCrossover(alpha=0.5),
     mutation=UniformMutation(mutation_rate=0.05, bounds=problem.get_bounds()),
-    replacement=ElitismReplacement(elite_size=10)
+    replacement=ElitistReplacement(elite_size=10)
 )
 
 # Ejecutar
@@ -556,7 +554,7 @@ Luego úsalo como cualquier otro problema del framework.
 - [x] TSP
 - [x] Tres tipos de mutaciones
 - [x] Optimización final de Himmelblau
-- [ ] Optimización final de Himmelblau con onlyone::True
+- [ ] Optimización final de Himmelblau con onlyone=True
 - [x] MO: Optimización de ZDT3
 - [x] MO: Optimización de MW7
 - [ ] MO: Optimización de MW14
@@ -602,8 +600,6 @@ Distribuido bajo la licencia MIT. Ve a [`LICENSE`](LICENSE) para mayor informaci
 ### Algoritmos implementados
 - **Algoritmos Genéticos**: Goldberg, D.E. (1989). "Genetic Algorithms in Search, Optimization, and Machine Learning"
 - **NSGA-II**: Deb, K., et al. (2002). "A fast and elitist multiobjective genetic algorithm: NSGA-II"
-- **Ant Colony Optimization**: Dorigo, M., & Stützle, T. (2004). "Ant Colony Optimization"
-- **2-opt**: Croes, G.A. (1958). "A Method for Solving Traveling-Salesman Problems"
 
 ### Problemas benchmark
 - **ZDT Test Suite**: Zitzler, E., Deb, K., & Thiele, L. (2000). "Comparison of Multiobjective Evolutionary Algorithms"
