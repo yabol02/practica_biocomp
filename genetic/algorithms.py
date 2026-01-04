@@ -151,8 +151,6 @@ class GeneticAlgorithmMO:
         crossover: Crossover,
         mutation: Mutation,
         replacement: Replacement,
-        strategy: str = "pareto",
-        weights: Optional[List[float]] = None,
     ):
         """
         Initialize Multi-Objective Genetic Algorithm.
@@ -171,10 +169,6 @@ class GeneticAlgorithmMO:
         :type mutation: Mutation
         :param replacement: Replacement method
         :type replacement: Replacement
-        :param strategy: Optimization strategy. Admits: `pareto`, `weighted`, `sequential`
-        :type strategy: str
-        :param weights: Weights for weighted sum strategy (if strategy is `weighted`)
-        :type weights: Optional[List[float]]
         """
         self.problem = problem
         self.population_size = population_size
@@ -183,25 +177,6 @@ class GeneticAlgorithmMO:
         self.crossover = crossover
         self.mutation = mutation
         self.replacement = replacement
-        self.strategy = strategy.lower()
-
-        if self.strategy not in ["pareto", "weighted", "sequential"]:
-            raise ValueError(
-                f"Unknown strategy: {strategy}. Use 'pareto', 'weighted', or 'sequential'"
-            )
-
-        if self.strategy == "weighted":
-            if weights is None:
-                self.weights = np.ones(problem.n_objectives) / problem.n_objectives
-            else:
-                self.weights = np.array(weights)
-                if len(self.weights) != problem.n_objectives:
-                    raise ValueError(
-                        f"Weights length must match n_objectives ({problem.n_objectives})"
-                    )
-                self.weights = self.weights / np.sum(self.weights)
-        else:
-            self.weights = None
 
     def _compute_pareto_ranks(self, population: Population) -> np.ndarray:
         """
@@ -354,13 +329,12 @@ class GeneticAlgorithmMO:
         return self.problem.get_result()
 
     def __str__(self) -> str:
-        return f"MOGA(pop={self.population_size}, strategy={self.strategy})"
+        return f"MOGA(pop={self.population_size})"
 
     def __repr__(self) -> str:
         return (
             f"MultiObjectiveGeneticAlgorithm("
             f"pop={self.population_size}, "
-            f"strategy={self.strategy}, "
             f"sel={self.selection.__class__.__name__}, "
             f"cx={self.crossover.__class__.__name__}, "
             f"mut={self.mutation.__class__.__name__}, "
