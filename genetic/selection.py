@@ -28,6 +28,13 @@ class Selection(ABC):
         """Alias for `select` method."""
         return self.select(*args, **kwargs)
 
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
 
 class TournamentSelection(Selection):
     """Tournament selection operator."""

@@ -26,6 +26,13 @@ class Mutation(ABC):
         """Alias for `mutate` method."""
         return self.mutate(*args, **kwargs)
 
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
 
 class UniformMutation(Mutation):
     """Uniform mutation for real-valued individuals."""

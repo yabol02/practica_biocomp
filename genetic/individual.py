@@ -68,19 +68,22 @@ class Individual(ABC):
         fitness_str = (
             f"{self.fitness:.4f}"
             if isinstance(self.fitness, (float, int))
-            else np.array2string(self.fitness)
+            else np.array2string(self.fitness, precision=3)
         )
         fitness_str = fitness_str if self.is_evaluated else "None"
-        return f"{self.__class__.__name__}(fitness={fitness_str}, genotype={self.genotype})"
+        geno = str(self.genotype)
+        if len(geno) > 30:
+            geno = f"{geno[:10]}...{geno[-10:]}"
+        return f"{self.__class__.__name__}(fitness={fitness_str}, genotype={geno})"
 
     def __str__(self) -> str:
         fitness_str = (
             f"{self.fitness:.4f}"
             if isinstance(self.fitness, (float, int))
-            else np.array2string(self.fitness)
+            else np.array2string(self.fitness, precision=3)
         )
         fitness_str = fitness_str if self.is_evaluated else "None"
-        return f"{self.__class__.__name__} with fitness: {fitness_str}"
+        return f"<{self.__class__.__name__} | fitness: {fitness_str}>"
 
 
 class RealIndividual(Individual):

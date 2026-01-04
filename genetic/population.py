@@ -142,7 +142,22 @@ class Population:
         return self.individuals[key]
 
     def __repr__(self) -> str:
-        return (
-            f"Population(size={len(self)}, minimize={self.minimize}, "
-            f"best_fitness={self.best_individual.fitness if self._best_individual else 'Unevaluated'})"
+        best = "None"
+        if np.any(self.individuals) and self._best_individual is not None:
+            val = self.best_individual.fitness
+            best = (
+                f"{val:.4f}"
+                if isinstance(val, float)
+                else np.array2string(val, precision=3)
+            )
+            if len(best) > 20:
+                best = best[:15] + "..."
+        return f"Population(size={len(self)}, mode={'min' if self.minimize else 'max'}, best={best})"
+
+    def __str__(self) -> str:
+        status = (
+            "Evaluated"
+            if all(i.is_evaluated for i in self.individuals)
+            else "Unevaluated"
         )
+        return f"<Population size={len(self)} ({status})>"

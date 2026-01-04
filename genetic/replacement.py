@@ -24,11 +24,12 @@ class Replacement(ABC):
         """Alias for `replace` method."""
         return self.replace(*args, **kwargs)
 
-    def __str__(self) -> str:
-        return self.__class__.__name__
-
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}()"
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
 
 
 class GenerationalReplacement(Replacement):

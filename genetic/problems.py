@@ -73,6 +73,12 @@ class Problem(ABC):
         self.evaluations_count = 0
         self.history = []
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(evals={self.evaluations_count}/{self.config.max_evaluations})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__} | Budget Used: {self.evaluations_count}>"
+
 
 class SingleObjectiveProblem(Problem):
     """Base class for single-objective problems."""
@@ -151,6 +157,23 @@ class SingleObjectiveProblem(Problem):
             evaluations_used=self.evaluations_count,
             history=self.history,
         )
+
+    def __repr__(self) -> str:
+        best = (
+            f"{self.best_fitness:.4f}"
+            if self.best_fitness not in [float("inf"), float("-inf")]
+            else "None"
+        )
+        return f"{self.__class__.__name__}(best={best}, evals={self.evaluations_count}/{self.config.max_evaluations})"
+
+    def __str__(self) -> str:
+        best = (
+            f"{self.best_fitness:.4f}"
+            if self.best_fitness not in [float("inf"), float("-inf")]
+            else "None"
+        )
+        mode = "min" if self.minimize else "max"
+        return f"<{self.__class__.__name__} ({mode}) | Best Fitness: {best}>"
 
 
 class MultiObjectiveProblem(Problem):
@@ -357,6 +380,14 @@ class MultiObjectiveProblem(Problem):
                 scatter.add(true_front, color="red", label="True Front", alpha=0.5)
 
         return scatter
+
+    def __repr__(self) -> str:
+        n_pareto = len(self.pareto_front) if self.pareto_front.size > 0 else 0
+        return f"{self.__class__.__name__}(objectives={self.n_objectives}, pareto_size={n_pareto}, evals={self.evaluations_count})"
+
+    def __str__(self) -> str:
+        n_pareto = len(self.pareto_front) if self.pareto_front.size > 0 else 0
+        return f"<{self.__class__.__name__} | Objectives: {self.n_objectives} | Pareto Solutions: {n_pareto}>"
 
 
 class HimmelblauProblem(SingleObjectiveProblem):
