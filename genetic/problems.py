@@ -634,3 +634,266 @@ class PymooProblem(MultiObjectiveProblem):
         :rtype: Optional[np.ndarray]
         """
         return self.pymoo_problem.pareto_front()
+
+
+class MOTSProblem(MultiObjectiveProblem):
+    """
+    Multi-Objective Traveling Salesman Problem (MO-TSP).
+
+    This problem extends the classic TSP by introducing a second objective: travel time.
+    While distance is computed as Euclidean distance between cities, travel time accounts
+    for elevation differences between cities, generated using Perlin noise.
+
+    Objectives:
+        1. Total distance: Sum of Euclidean distances along the tour.
+        2. Total time: Sum of travel times considering terrain elevation changes.
+
+    The time calculation penalizes uphill travel and provides a small benefit for
+    downhill travel, simulating realistic terrain traversal.
+    """
+
+    # Perlin noise parameters for elevation generation
+    PERLIN_SCALE: float = 0.1
+    PERLIN_OCTAVES: int = 4
+    PERLIN_PERSISTENCE: float = 0.5
+    PERLIN_LACUNARITY: float = 2.0
+
+    # Time calculation coefficients
+    UPHILL_PENALTY: float = 2.0
+    DOWNHILL_BENEFIT: float = 0.5
+
+    def __init__(
+        self,
+        config: ProblemConfig,
+        cities: Iterable[Tuple[float, float]],
+        perlin_seed: int = 42,
+        elevation_scale: float = 100.0,
+    ):
+        """
+        Initialize Multi-Objective TSP.
+
+        :param config: Problem configuration
+        :type config: ProblemConfig
+        :param cities: Iterable of (x, y) city coordinates
+        :type cities: Iterable[Tuple[float, float]]
+        :param perlin_seed: Seed for Perlin noise generation (reproducibility)
+        :type perlin_seed: int
+        :param elevation_scale: Scaling factor for elevation values
+        :type elevation_scale: float
+        """
+        super().__init__(config, n_objectives=2)
+
+        self.cities = np.asanyarray(cities, dtype=np.float64)
+        self.n_cities = self.cities.shape[0]
+        self.perlin_seed = perlin_seed
+        self.elevation_scale = elevation_scale
+
+        # Pre-compute matrices for efficient evaluation
+        self.dist_matrix = self._compute_distance_matrix()
+        self.time_matrix = self._compute_time_matrix()
+        self.minimize = True
+
+    def _compute_distance_matrix(self) -> np.ndarray:
+        """
+        Compute Euclidean distance matrix between all cities.
+
+        :return: Symmetric distance matrix of shape (n_cities, n_cities)
+        :rtype: np.ndarray
+        """
+        diff = self.cities[:, np.newaxis, :] - self.cities[np.newaxis, :, :]
+        return np.sqrt(np.sum(diff**2, axis=-1))
+
+    def _generate_elevations(self) -> np.ndarray:
+        """
+        Generate elevation values for each city using Perlin noise.
+
+        Perlin noise creates smooth, natural-looking terrain where nearby
+        cities have correlated but potentially different elevations.
+
+        :return: Array of elevation values for each city
+        :rtype: np.ndarray
+        """
+        try:
+            from noise import pnoise2
+        except ImportError:
+            raise ImportError(
+                "The 'noise' package is required for Perlin noise generation. "
+                "Install it with: pip install noise"
+            )
+
+        elevations = np.zeros(self.n_cities)
+
+        for i, (x, y) in enumerate(self.cities):
+            elevations[i] = pnoise2(
+                x * self.PERLIN_SCALE,
+                y * self.PERLIN_SCALE,
+                octaves=self.PERLIN_OCTAVES,
+                persistence=self.PERLIN_PERSISTENCE,
+                lacunarity=self.PERLIN_LACUNARITY,
+                base=self.perlin_seed,
+            )
+
+        # Normalize to [0, 1] range and scale
+        elevations = (elevations - elevations.min()) / (
+            elevations.max() - elevations.min() + 1e-10
+        )
+        return elevations * self.elevation_scale
+
+    def _compute_time_matrix(self) -> np.ndarray:
+        """
+        Compute travel time matrix between all cities.
+
+        Travel time considers:
+        - Base distance between cities
+        - Uphill penalty: traveling upward is slower (coefficient: UPHILL_PENALTY)
+        - Downhill benefit: traveling downward is slightly faster (coefficient: DOWNHILL_BENEFIT)
+
+        Note: The time matrix is NOT symmetric (going A->B may differ from B->A).
+
+        :return: Asymmetric time matrix of shape (n_cities, n_cities)
+        :rtype: np.ndarray
+        """
+        self.elevations = self._generate_elevations()
+        time_matrix = np.zeros((self.n_cities, self.n_cities))
+
+        for i in range(self.n_cities):
+            for j in range(self.n_cities):
+                if i == j:
+                    continue
+
+                distance = self.dist_matrix[i, j]
+                elevation_diff = self.elevations[j] - self.elevations[i]
+
+                # Uphill penalty (positive elevation difference)
+                uphill_effort = max(0.0, elevation_diff) * self.UPHILL_PENALTY
+
+                # Downhill benefit (negative elevation difference)
+                downhill_benefit = abs(min(0.0, elevation_diff)) * self.DOWNHILL_BENEFIT
+
+                time_matrix[i, j] = distance + uphill_effort - downhill_benefit
+
+        return time_matrix
+
+    def _compute_tour_distance(
+        self, solution: np.ndarray, closed: bool = True
+    ) -> float:
+        """
+        Compute total Euclidean distance of a tour.
+
+        :param solution: Ordered array of city indices defining the tour
+        :type solution: np.ndarray
+        :param closed: Whether to close the tour (return to start city)
+        :type closed: bool
+        :return: Total tour distance
+        :rtype: float
+        """
+        solution = np.asanyarray(solution, dtype=int)
+        from_cities = solution[:-1]
+        to_cities = solution[1:]
+
+        total = self.dist_matrix[from_cities, to_cities].sum()
+
+        if closed:
+            total += self.dist_matrix[solution[-1], solution[0]]
+
+        return float(total)
+
+    def _compute_tour_time(self, solution: np.ndarray, closed: bool = True) -> float:
+        """
+        Compute total travel time of a tour considering elevation changes.
+
+        :param solution: Ordered array of city indices defining the tour
+        :type solution: np.ndarray
+        :param closed: Whether to close the tour (return to start city)
+        :type closed: bool
+        :return: Total tour travel time
+        :rtype: float
+        """
+        solution = np.asanyarray(solution, dtype=int)
+        from_cities = solution[:-1]
+        to_cities = solution[1:]
+
+        total = self.time_matrix[from_cities, to_cities].sum()
+
+        if closed:
+            total += self.time_matrix[solution[-1], solution[0]]
+
+        return float(total)
+
+    def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
+        """
+        Evaluate both objectives for a given tour.
+
+        :param solution: Ordered array of city indices defining the tour
+        :type solution: Union[List, np.ndarray]
+        :return: Array with [total_distance, total_time]
+        :rtype: np.ndarray
+        """
+        solution = np.asanyarray(solution, dtype=int)
+
+        self._validate_solution(solution)
+
+        distance = self._compute_tour_distance(solution, closed=True)
+        time = self._compute_tour_time(solution, closed=True)
+
+        return np.array([distance, time])
+
+    def _validate_solution(self, solution: np.ndarray) -> None:
+        """
+        Validate that a solution is a valid tour.
+
+        :param solution: Solution to validate
+        :type solution: np.ndarray
+        :raises ValueError: If solution is invalid
+        """
+        if len(solution) != self.n_cities:
+            raise ValueError(
+                f"Solution must visit all {self.n_cities} cities exactly once. "
+                f"Got {len(solution)} cities."
+            )
+
+        if not np.all((0 <= solution) & (solution < self.n_cities)):
+            raise ValueError("Solution contains invalid city indices.")
+
+        if len(np.unique(solution)) != self.n_cities:
+            raise ValueError("Solution must visit each city exactly once.")
+
+    def get_bounds(self) -> Tuple[int, int]:
+        """
+        Get bounds for city indices.
+
+        Note: In permutation-based TSP, bounds represent valid city indices
+        rather than continuous variable bounds.
+
+        :return: (min_index, max_index) tuple
+        :rtype: Tuple[int, int]
+        """
+        return (0, self.n_cities - 1)
+
+    def plot_pareto_front(
+        self, show_true_front: bool = False, problem_name: str = ""
+    ) -> Scatter:
+        """
+        Plot the obtained Pareto front with distance vs time objectives.
+
+        :param show_true_front: Not applicable for MO-TSP (no analytical front)
+        :type show_true_front: bool
+        :param problem_name: Custom name for the plot title
+        :type problem_name: str
+        :return: Scatter plot object
+        :rtype: Scatter
+        """
+        if not np.any(self.pareto_front):
+            print("No Pareto front available yet.")
+            return None
+
+        pareto = np.asarray(self.pareto_front)
+        problem_name = problem_name if problem_name else "Multi-Objective TSP"
+
+        scatter = Scatter(
+            title=f"{problem_name} - Pareto Front",
+            labels=["Total Distance", "Total Time"],
+        )
+        scatter.add(pareto, color="blue", label="Obtained Front")
+
+        return scatter

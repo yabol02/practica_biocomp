@@ -36,10 +36,10 @@ class Individual(ABC):
         """
         if self._fitness_value is None:
             return 0.0
-        
+
         if self._fitness_value.size == 1:
             return self._fitness_value.item()
-        
+
         return self._fitness_value
 
     @fitness.setter
@@ -65,10 +65,23 @@ class Individual(ABC):
         pass
 
     def __repr__(self) -> str:
-        return f"Individual(fitness={self.fitness:.4f}, genotype={self.genotype})"
+        fitness_str = (
+            f"{self.fitness:.4f}"
+            if isinstance(self.fitness, (float, int))
+            else np.array2string(self.fitness)
+        )
+        fitness_str = fitness_str if self.is_evaluated else "None"
+        return f"{self.__class__.__name__}(fitness={fitness_str}, genotype={self.genotype})"
 
     def __str__(self) -> str:
-        return f"Individual with fitness: {self.fitness:.4f}"
+        fitness_str = (
+            f"{self.fitness:.4f}"
+            if isinstance(self.fitness, (float, int))
+            else np.array2string(self.fitness)
+        )
+        fitness_str = fitness_str if self.is_evaluated else "None"
+        return f"{self.__class__.__name__} with fitness: {fitness_str}"
+
 
 class RealIndividual(Individual):
     """Individual with real-valued genotype for continuous optimization."""
