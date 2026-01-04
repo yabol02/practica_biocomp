@@ -104,7 +104,7 @@ El proyecto utiliza las siguientes librerías:
 | `ipykernel` | ≥7.1.0 | Soporte para Jupyter notebooks |
 
 > [!TIP]
-> Todas las dependencias se instalan automáticamente con `uv sync`.
+> Todas las dependencias se instalan automáticamente con el comando `uv sync`.
 
 ### Instalación
 
@@ -163,7 +163,7 @@ print(f"✓ Mejor fitness: {result.best_fitness:.6f}")
 print(f"✓ Solución: {result.best_solution}")
 ```
 
-Para explorar los experimentos completos, consulta los notebooks en el directorio [notebooks](./notebooks/)
+Para explorar los experimentos completos, consulta los notebooks en el directorio [notebooks](./notebooks/).
 
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
@@ -175,8 +175,7 @@ Este proyecto implementa y compara diferentes enfoques de optimización bioinspi
 
 ### Algoritmos implementados
 
-#### 🧬 Algoritmo Genético (GA)
-Implementación completa desde cero (`genetic/`) con:
+Implementación completa de algoritmos genéticos desde cero en el módulo [genetic/](./genetic/) con:
 - **Inicialización**: Aleatoria uniforme para individuos reales y permutaciones
 - **Selección**: Torneo, selección ponderada, selección multi-objetivo (NSGA-II)
 - **Operadores de cruce**:
@@ -204,6 +203,8 @@ Implementación completa desde cero (`genetic/`) con:
 - Minimización de distancia total del recorrido
 - Representación mediante permutaciones
 - Distancia euclidiana entre ciudades
+- Métodos de comparación:
+  - Algoritmo de la colonia de hormigas (implementación propia en [aco.py](./aco.py))
 
 
 #### Optimización multi-objetivo
@@ -212,6 +213,7 @@ Implementación completa desde cero (`genetic/`) con:
 - **ZDT1**: Problema convexo clásico (2 objetivos, 30 variables)
 - **ZDT3**: Frente de Pareto discontinuo
 - **MW7**: Problema con geometría compleja
+- **MW14**: Problema altamente no lineal con frente de Pareto irregular y con 3 objetivos
 - Disponibilidad de frente de Pareto verdadero para métricas
 
 **2. TSP Multi-Objetivo** (`genetic/problems.py::MOTSProblem`)
@@ -222,27 +224,14 @@ Implementación completa desde cero (`genetic/`) con:
   - Beneficio por bajadas (coef. 0.5)
 - Trade-off entre ruta corta vs. ruta rápida
 
-### Algoritmos multi-objetivo
-
-**Selección basada en dominancia de Pareto**:
-- `ParetoSelection`: Torneo con dominancia
-- `ParetoSelection`: Ordenación por fronts (NSGA-II)
-- Actualización incremental del frente de Pareto
-
-**Métricas de evaluación**:
-- Número de soluciones no-dominadas
-- Spread del frente (varianza de objetivos)
-- Ratio de no-dominancia en población
-
 ### Notebooks de experimentación
 
 Los experimentos se encuentran en el directorio `notebooks/`:
-- `himmelblau.ipynb`: Optimización y comparativa con PSO/Scipy
-- `tsp.ipynb`: TSP con GA
+- `himmelblau.ipynb`: Optimización de la función Himmelblau con GA y comparativa con PSO/Scipy
+- `tsp.ipynb`: Optimización de un problema TSP dadas N ciudades con GA y comparativa con ACO
 - `zdt1.ipynb`, `zdt3.ipynb`: Problemas benchmark ZDT
 - `mw7.ipynb`, `mw14.ipynb`: Problemas benchmark MW
 - `mo_tsp.ipynb`: TSP multi-objetivo con análisis de Pareto
-- `Pymoo alumno.ipynb`: Comparativa con algoritmos de Pymoo (NSGA-II, MOEAD)
 
 <a id="estructura-del-proyecto"></a>
 ## 🪴 Estructura del proyecto
@@ -250,42 +239,39 @@ Los experimentos se encuentran en el directorio `notebooks/`:
 ```
 practica_biocomp/
 ├── genetic/                    # Módulo principal de Algoritmos Genéticos
-│   ├── __init__.py            # Inicializa el paquete y facilita imports básicos
-│   ├── algorithms.py          # Implementación de GA mono y multi-objetivo
-│   ├── configurations.py      # Configuración de problemas
-│   ├── crossover.py           # Operadores de cruce
-│   ├── individual.py          # Representación de individuos
-│   ├── initialization.py      # Estrategias de inicialización de población
-│   ├── mutation.py            # Operadores de mutación
-│   ├── population.py          # Clase Population y operaciones
-│   ├── problems.py            # Problemas de optimización
-│   ├── replacement.py         # Estrategias de reemplazo
-│   ├── results.py             # Almacenamiento de resultados
-│   └── selection.py           # Métodos de selección
+│   ├── __init__.py             # Inicializa el paquete y facilita imports básicos
+│   ├── algorithms.py           # Implementación de GA mono y multi-objetivo
+│   ├── configurations.py       # Configuración de problemas
+│   ├── crossover.py            # Operadores de cruce
+│   ├── individual.py           # Representación de individuos
+│   ├── initialization.py       # Estrategias de inicialización de población
+│   ├── mutation.py             # Operadores de mutación
+│   ├── population.py           # Clase Population y operaciones
+│   ├── problems.py             # Problemas de optimización
+│   ├── replacement.py          # Estrategias de reemplazo
+│   ├── results.py              # Almacenamiento de resultados
+│   └── selection.py            # Métodos de selección
 │
 ├── notebooks/                  # Jupyter Notebooks con experimentos
-│   ├── himmelblau.ipynb       # Optimización de Himmelblau (GA vs PSO vs Scipy)
-│   ├── tsp.ipynb              # TSP con Algoritmo Genético
-│   ├── zdt1.ipynb             # Problema benchmark ZDT1
-│   ├── zdt3.ipynb             # Problema benchmark ZDT3
-│   ├── mw7.ipynb              # Problema benchmark MW7
-│   ├── mw14.ipynb             # Problema benchmark MW14 (si implementado)
-│   ├── mo_tsp.ipynb           # TSP Multi-Objetivo (distancia vs tiempo)
-│   ├── Pymoo alumno.ipynb     # Comparativas con algoritmos de Pymoo
-│   ├── AG alumno.ipynb        # Desarrollo y pruebas de AG
-│   └── TSP_development.ipynb  # Desarrollo y depuración de TSP
+│   ├── himmelblau.ipynb        # Optimización de Himmelblau (GA vs PSO vs Scipy)
+│   ├── tsp.ipynb               # TSP con Algoritmo Genético
+│   ├── zdt1.ipynb              # Problema benchmark ZDT1
+│   ├── zdt3.ipynb              # Problema benchmark ZDT3
+│   ├── mw7.ipynb               # Problema benchmark MW7
+│   ├── mw14.ipynb              # Problema benchmark MW14 (si implementado)
+│   └── mo_tsp.ipynb            # TSP Multi-Objetivo (distancia vs tiempo)
 │
 ├── diagrams/                   # Diagramas y visualizaciones
-│   └── classes.excalidraw     # Diagrama de arquitectura de clases
+│   └── classes.excalidraw      # Diagrama de arquitectura de clases
 │
 ├── aco.py                      # Implementación de ACO para TSP
 ├── main.py                     # Script de ejemplo de uso
-├── pyproject.toml             # Configuración del proyecto y dependencias
-├── uv.lock                    # Lock file de dependencias (uv)
-├── .python-version            # Versión de Python requerida
-├── CHANGELOG.md               # Historial de cambios
-├── LICENSE                    # Licencia MIT
-└── README.md                  # Este archivo
+├── pyproject.toml              # Configuración del proyecto y dependencias
+├── uv.lock                     # Lock file de dependencias (uv)
+├── .python-version             # Versión de Python requerida
+├── CHANGELOG.md                # Historial de cambios
+├── LICENSE                     # Licencia MIT
+└── README.md                   # Este archivo
 ```
 
 ### Componentes principales
@@ -293,18 +279,19 @@ practica_biocomp/
 #### Módulo `genetic`
 Framework completo y modular para algoritmos genéticos:
 
-- **`Individual`**: Representación abstracta de soluciones
-  - `RealIndividual`: Individuos con genes de valor real
-  - `PermutationIndividual`: Individuos con genes de permutación (para TSP)
+- **`Individual`**: Representación abstracta de soluciones con verificación de genotipo por si hay alguno inválido
+  - `RealIndividual`: Individuos con genes de valor real y problemas continuos
+  - `PermutationIndividual`: Individuos con genes de permutación (tipo TSP)
 
-- **`Population`**: Colección de individuos con operaciones de:
-  - Evaluación en paralelo
-  - Ordenación por fitness
-  - Soporte multi-objetivo (frentes de Pareto)
+- **`Population`**: Clase que unifica la colección de individuos con operaciones de:
+  - Evaluación de fitness de los individuos
+  - Selección de mejores individuos
+  - Soporte básico para problemas multi-objetivo
 
 - **`Problem`**: Clase base para definir problemas de optimización
   - `SingleObjectiveProblem`: Problemas con un solo objetivo
   - `MultiObjectiveProblem`: Problemas con múltiples objetivos
+  - Se definen problemas a partir de estos básicos para poder seguir una interfaz unificada
   - Sistema de tracking de evaluaciones y historial
 
 - **Operadores genéticos**:
@@ -312,18 +299,18 @@ Framework completo y modular para algoritmos genéticos:
   - Separación clara de responsabilidades
   - Fácil extensión para nuevos operadores
 
-#### Sistema de configuración
 - **`ProblemConfig`**: Centraliza parámetros de experimentación
   - Semillas aleatorias para reproducibilidad
   - Budget de evaluaciones
   - Directorio de salida de resultados
 
-#### Sistema de resultados
-- **`SingleObjectiveResult`**: Para problemas mono-objetivo
-- **`MultiObjectiveResult`**: Para problemas multi-objetivo
-- Exportación a CSV y visualización de convergencia/Pareto
+  - Sistema de resultados para unificar las interfaces
+  - **`SingleObjectiveResult`**: Para problemas mono-objetivo
+  - **`MultiObjectiveResult`**: Para problemas multi-objetivo
+  - Exportación a CSV
+  - Visualización de convergencia/Pareto
 
-### 💡 Características avanzadas
+### Características avanzadas
 
 - **Reproducibilidad**: Todas las ejecuciones son reproducibles mediante semillas
 - **Extensibilidad**: Arquitectura modular que facilita añadir nuevos problemas y operadores

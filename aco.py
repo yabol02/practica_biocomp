@@ -1,5 +1,8 @@
 """
 Módulo de Optimización por Colonia de Hormigas (ACO) para el problema del Viajante (TSP).
+Mejora respecto al código original de @zro404 con múltiples refactorizaciones y optimizaciones.
+Código original en: https://github.com/zro404/ACO
+Módulo original instalable vía pip: `pip install aco`
 
 REFFACTORIZACIÓN Y MEJORAS:
 
@@ -31,8 +34,8 @@ REFFACTORIZACIÓN Y MEJORAS:
    - Type Hinting: Añadido tipado estático completo para mejor legibilidad y soporte en IDEs.
    - PEP 8: Normalización de nombres de variables (snake_case) y limpieza de atributos de clase.
 
-Original Author: @zro404
-Refactored by: @raguirregabiria, @yabol02, @aestoquera
+Autor original: @zro404
+Refactorizado por: @raguirregabiria, @yabol02, @aestoquera
 """
 
 import math
