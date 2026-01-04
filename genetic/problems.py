@@ -5,6 +5,7 @@ import numpy as np
 from pymoo.problems import get_problem
 from pymoo.visualization.scatter import Scatter
 from pyswarms.single import GlobalBestPSO
+from scipy.optimize import minimize
 
 from .configurations import ProblemConfig
 from .individual import Individual
@@ -429,6 +430,56 @@ class HimmelblauProblem(SingleObjectiveProblem):
             best_solution=pos,
             evaluations_used=len(optimizer.cost_history),
             history=optimizer.cost_history,
+        )
+
+    def get_scipy_result(
+        self,
+        method: str = "L-BFGS-B",
+        x0: Optional[List[float]] = None,
+        tol: float = 1e-8,
+    ) -> SingleObjectiveResult:
+        """
+        Optimize using scipy.optimize.minimize.
+
+        :param method: Optimization method (e.g., 'L-BFGS-B', 'SLSQP', 'Nelder-Mead')
+        :type method: str
+        :param x0: Initial guess. If None, uses center of bounds.
+        :type x0: Optional[List[float]]
+        :param tol: Tolerance for termination.
+        :type tol: float
+        :return: Scipy optimization result
+        :rtype: SingleObjectiveResult
+        """
+
+        eval_count = 0
+        history = []
+
+        def tracked_fitness(x):
+            nonlocal eval_count
+            eval_count += 1
+            fitness = self._fitness_function(x)
+            history.append(fitness)
+            return fitness
+
+        if x0 is None:
+            x0 = [(b[0] + b[1]) / 2 for b in self.bounds]
+
+        scipy_bounds = [(b[0], b[1]) for b in self.bounds]
+
+        result = minimize(
+            tracked_fitness,
+            x0=x0,
+            method=method,
+            bounds=scipy_bounds,
+            tol=tol,
+        )
+
+        return SingleObjectiveResult(
+            problem_name=f"Scipy_{method}_{self.__class__.__name__}",
+            best_fitness=result.fun,
+            best_solution=result.x.tolist(),
+            evaluations_used=eval_count,
+            history=history,
         )
 
 
