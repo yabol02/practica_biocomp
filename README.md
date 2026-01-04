@@ -62,7 +62,7 @@ El proyecto abarca implementaciones desde cero (from scratch) de:
 * **Algoritmos Genéticos (GA):** Selección, cruce, mutación y reemplazo
 * **Optimización Mono-objetivo:** Función de Himmelblau y Problema del Viajante (TSP)
 * **Optimización Multi-objetivo (MOEA):** Implementación de frentes de Pareto, métricas de diversidad y convergencia (ZDT1, ZDT3, MW7)
-* **ACO para TSP:** Algoritmo de Colonia de Hormigas con estrategias avanzadas
+
 * **Comparativas:** Benchmarking contra PySwarms (PSO), Scipy (métodos clásicos) y Pymoo (MOEA)
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
@@ -187,7 +187,7 @@ Implementación completa desde cero (`genetic/`) con:
   - `UniformMutation`: Mutación uniforme para variables reales
   - `SwapMutation`: Intercambio de genes para permutaciones
   - `InversionMutation`: Inversión de subsecuencias
-- **Reemplazo**: Elitismo, reemplazo generacional, reemplazo steady-state
+- **Reemplazo**: Elitismo, reemplazo generacional, reemplazo μ+λ (mu+lambda)
 
 ### Problemas de optimización
 
@@ -205,7 +205,7 @@ Implementación completa desde cero (`genetic/`) con:
 - Minimización de distancia total del recorrido
 - Representación mediante permutaciones
 - Distancia euclidiana entre ciudades
-- Comparación con ACO
+
 
 #### Optimización multi-objetivo
 
@@ -226,8 +226,8 @@ Implementación completa desde cero (`genetic/`) con:
 ### Algoritmos multi-objetivo
 
 **Selección basada en dominancia de Pareto**:
-- `ParetoTournamentSelection`: Torneo con dominancia
-- `NonDominatedSortingSelection`: Ordenación por fronts (NSGA-II)
+- `ParetoSelection`: Torneo con dominancia
+- `ParetoSelection`: Ordenación por fronts (NSGA-II)
 - Actualización incremental del frente de Pareto
 
 **Métricas de evaluación**:
@@ -239,7 +239,7 @@ Implementación completa desde cero (`genetic/`) con:
 
 Los experimentos se encuentran en el directorio `notebooks/`:
 - `himmelblau.ipynb`: Optimización y comparativa con PSO/Scipy
-- `tsp.ipynb`: TSP con GA y comparación con ACO
+- `tsp.ipynb`: TSP con GA
 - `zdt1.ipynb`, `zdt3.ipynb`: Problemas benchmark ZDT
 - `mw7.ipynb`, `mw14.ipynb`: Problemas benchmark MW
 - `mo_tsp.ipynb`: TSP multi-objetivo con análisis de Pareto
@@ -251,7 +251,7 @@ Los experimentos se encuentran en el directorio `notebooks/`:
 ```
 practica_biocomp/
 ├── genetic/                    # Módulo principal de Algoritmos Genéticos
-│   ├── __init__.py            # Exporta clases principales del módulo
+│   ├── __init__.py            # Inicializa el paquete y facilita imports básicos
 │   ├── algorithms.py          # Implementación de GA mono y multi-objetivo
 │   ├── configurations.py      # Configuración de problemas
 │   ├── crossover.py           # Operadores de cruce
@@ -340,7 +340,7 @@ Framework completo y modular para algoritmos genéticos:
 ### Ejemplo básico: Optimización de Himmelblau
 
 ```python
-from genetic import GeneticAlgorithmSO
+from genetic.algorithms import GeneticAlgorithmSO
 from genetic.configurations import ProblemConfig
 from genetic.crossover import BlendCrossover
 from genetic.initialization import UniformInitialization
@@ -381,7 +381,7 @@ result.plot_convergence().savefig("results/himmelblau/convergence.png")
 ### Ejemplo: TSP con Algoritmo Genético
 
 ```python
-from genetic import GeneticAlgorithmSO
+from genetic.algorithms import GeneticAlgorithmSO
 from genetic.configurations import ProblemConfig
 from genetic.crossover import OrderCrossover
 from genetic.initialization import PermutationInitialization
@@ -419,35 +419,13 @@ print(f"Distancia total: {result.best_fitness}")
 ```python
 from aco import AntColony
 
-# Definir ciudades
-cities = [(0, 0), (1, 5), (5, 3), (8, 1), (4, 7)]
 
-# Ejecutar ACO
-colony = AntColony(
-    nodes=cities,
-    ant_count=50,
-    alpha=1.0,      # Influencia de feromonas
-    beta=5.0,       # Influencia de la heurística (distancia)
-    rho=0.1,        # Tasa de evaporación
-    q0=0.7,         # Probabilidad de explotación vs exploración
-    iterations=200,
-    elite_count=3,
-    random_state=42
-)
-
-# Obtener resultados
-best_path = colony.get_path()
-print(f"Mejor camino: {best_path}")
-print(f"Distancia: {colony.best_distance}")
-
-# Historial de convergencia
-history = colony.get_distance_history()
 ```
 
 ### Ejemplo: Optimización Multi-Objetivo (ZDT3)
 
 ```python
-from genetic import GeneticAlgorithmMO
+from genetic.algorithms import GeneticAlgorithmMO
 from genetic.configurations import ProblemConfig
 from genetic.crossover import BlendCrossover
 from genetic.initialization import UniformInitialization
@@ -492,7 +470,7 @@ Los notebooks en `notebooks/` contienen experimentos completos y reproducibles:
 
 2. **Notebooks disponibles**:
    - `himmelblau.ipynb`: Comparación GA vs PSO vs métodos tradicionales
-   - `tsp.ipynb`: Comparación GA vs ACO en diferentes instancias
+   - `tsp.ipynb`: Resolución del TSP con GA en diferentes instancias
    - `zdt1.ipynb`, `zdt3.ipynb`: Optimización multi-objetivo ZDT
    - `mw7.ipynb`: Problema MW7 con análisis de Pareto
    - `mo_tsp.ipynb`: TSP bi-objetivo (distancia vs tiempo)
