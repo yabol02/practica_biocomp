@@ -24,6 +24,7 @@ class GeneticAlgorithmSO:
         crossover: Crossover,
         mutation: Mutation,
         replacement: Replacement,
+        print_interval: int = 10,
     ):
         """
         Initialize Genetic Algorithm.
@@ -42,6 +43,8 @@ class GeneticAlgorithmSO:
         :type mutation: Mutation
         :param replacement: Replacement strategy
         :type replacement: Replacement
+        :param print_interval: Interval of generations to print progress
+        :type print_interval: int
         """
         self.problem = problem
         self.population_size = population_size
@@ -50,70 +53,81 @@ class GeneticAlgorithmSO:
         self.crossover = crossover
         self.mutation = mutation
         self.replacement = replacement
+        self.print_interval = print_interval
+
+        self._current_population: Optional[Population] = None
+        self._generation_count: int = 0
+
+    @property
+    def current_population(self) -> Optional[Population]:
+        """
+        Get current population.
+
+        :return: Current population
+        :rtype: Optional[Population]
+        """
+        return self._current_population
+
+    def initialize(self) -> None:
+        """
+        Prepares the initial population and evaluates it.
+        """
+        self.problem.config.initialize_random_state()
+
+        bounds = self.problem.get_bounds()
+        self._current_population = self.initialization(
+            self.population_size, bounds, self.problem
+        )
+        self._current_population.evaluate_population(self.problem.evaluate)
+
+        self._generation_count = 0
+        self.problem.update_history(self._current_population)
+
+    def step(self) -> None:
+        """
+        Perform a single generation step of the genetic algorithm.
+        1. Selection and Reproduction
+        2. Replacement (Generate new population)
+        3. Evaluation and Logging
+        """
+        if self._current_population is None:
+            self.initialize()
+
+        selected = self.selection(self._current_population, self.population_size)
+        offspring = self.crossover(selected, len(self._current_population))
+        offspring = self.mutation(offspring)
+
+        self._current_population = self.replacement(self._current_population, offspring)
+
+        self._current_population.evaluate_population(self.problem.evaluate)
+        self.problem.update_history(self._current_population)
+
+        self._generation_count += 1
 
     def run(self) -> SingleObjectiveResult:
         """
-        Execute genetic algorithm.
+        Complete execution of the algorithm until the budget is exhausted.
 
         :return: Optimization result
         :rtype: SingleObjectiveResult
         """
-        self.problem.config.initialize_random_state()
+        if self._current_population is None:
+            self.initialize()
 
-        # Initialize population (may use evaluation!)
-        bounds = self.problem.get_bounds()
-        # TODO: Add defaults args to the Initialization class and use here, e.g., if no initialization is provided, use something like:
-        # population = Population(
-        #     individuals=[
-        #         RealIndividual(bounds=bounds) for _ in range(self.population_size)
-        #     ],
-        #     minimize=True,
-        # )
-        population: Population = self.initialization(
-            self.population_size, bounds, self.problem
-        )
-
-        generation = 0
-
-        # Main loop
         while not self.problem.reached_budget():
-            # Evaluate population
-            population.evaluate_population(self.problem.evaluate)
+            self.step()
 
-            # Track best
-            best = population.best_individual
-            self.problem.update_history(best.fitness)
-
-            # Print progress
-            if generation % 10 == 0:
+            if self._generation_count % self.print_interval == 0:
+                stats = self._current_population.stats
                 print(
-                    f"Gen {generation}: Evals={self.problem.evaluations_count}/{self.problem.config.max_evaluations}, "
-                    f"Best={best.fitness:.6f}, Solution={[f'{x:.4f}' for x in best.genotype]}"
-                )
+                    f"Gen {self._generation_count:6d} | "
+                    f"Evals: {self.problem.evaluations_count:7d} | "
+                    f"Best Global: {stats['best']:.5f} | "
+                    f"Current Population: {stats['mean']:.5f} ± {stats['std']:.3e}"
+                    )
 
-            # Check budget
-            if self.problem.reached_budget():
-                break
-
-            parents = population
-
-            # Selection
-            selected = self.selection(population, self.population_size)
-
-            # Crossover
-            offspring = self.crossover(selected, len(parents))
-
-            # Mutation
-            offspring = self.mutation(offspring)
-
-            # Replace population
-            population = self.replacement(parents, offspring)
-            generation += 1
-
-        # Final evaluation
-        population.evaluate_population(self.problem.evaluate)
-        best = population.best_individual
-        self.problem.update_history(best.fitness)
+        self._current_population.evaluate_population(self.problem.evaluate)
+        self.problem.update_history(self._current_population)
 
         return self.problem.get_result()
 
@@ -123,6 +137,7 @@ class GeneticAlgorithmSO:
     def __repr__(self) -> str:
         return (
             f"GeneticAlgorithm("
+            f"gen={self._generation_count}, "
             f"pop={self.population_size}, "
             f"sel={self.selection.__class__.__name__}, "
             f"cx={self.crossover.__class__.__name__}, "

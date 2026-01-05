@@ -9,6 +9,7 @@ from scipy.optimize import minimize
 
 from .configurations import ProblemConfig
 from .individual import Individual
+from .population import Population
 from .results import (MultiObjectiveResult, OptimizationResult,
                       SingleObjectiveResult)
 
@@ -88,6 +89,10 @@ class SingleObjectiveProblem(Problem):
         self.minimize = minimize
         self.best_fitness: float = float("inf") if minimize else float("-inf")
         self.best_solution: Optional[Individual] = None
+        self.mean_history: List = []
+        self.std_history: List = []
+        self.best_history: List = []
+        self.worst_history: List = []
 
     def evaluate(self, solution: List) -> float:
         """
@@ -134,14 +139,19 @@ class SingleObjectiveProblem(Problem):
         """
         pass
 
-    def update_history(self, current_best: float) -> None:
+    def update_history(self, population: Population) -> None:
         """
-        Update history with current best fitness.
+        Update history with current population stats.
 
-        :param current_best: Best fitness in current generation
-        :type current_best: float
+        :param population: Current population
+        :type population: Population
         """
-        self.history.append(current_best)
+        stats = population.stats
+        self.history.append(population.best_individual.fitness)
+        self.mean_history.append(stats.get("mean"))
+        self.std_history.append(stats.get("std"))
+        self.best_history.append(stats.get("best"))
+        self.worst_history.append(stats.get("worst"))
 
     def get_result(self) -> SingleObjectiveResult:
         """
@@ -927,4 +937,5 @@ class MOTSProblem(MultiObjectiveProblem):
         )
         scatter.add(pareto, color="blue", label="Obtained Front")
 
+        return scatter
         return scatter
