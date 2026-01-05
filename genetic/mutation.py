@@ -26,6 +26,13 @@ class Mutation(ABC):
         """Alias for `mutate` method."""
         return self.mutate(*args, **kwargs)
 
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
 
 class UniformMutation(Mutation):
     """Uniform mutation for real-valued individuals."""
@@ -59,7 +66,7 @@ class UniformMutation(Mutation):
         ind_class = population.ind_class
         bounds = population.bounds
 
-        matrix = np.array([ind.genotype for ind in population.individuals])
+        matrix = np.array([ind.genotype for ind in population])
         mutation_mask = np.random.random((n_individuals, n_genes)) < self.mutation_rate
         lows = self.bounds[:, 0]
         highs = self.bounds[:, 1]
@@ -73,9 +80,13 @@ class UniformMutation(Mutation):
                 new_ind = ind_class(genotype=matrix[i].tolist(), bounds=bounds)
                 new_individuals.append(new_ind)
             else:
-                new_individuals.append(population.individuals[i])
+                new_individuals.append(population[i])
 
-        population = Population(new_individuals, minimize=population.minimize)
+        population = Population(
+            new_individuals,
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
+        )
         return population
 
 
@@ -112,7 +123,7 @@ class SwapMutation(Mutation):
         new_individuals = []
         for i, mutated in enumerate(to_mutate):
             if mutated:
-                genotype = list(population.individuals[i].genotype)
+                genotype = list(population[i].genotype)
                 n_genes = len(genotype)
 
                 idx1, idx2 = random.sample(range(n_genes), 2)
@@ -121,7 +132,11 @@ class SwapMutation(Mutation):
                 new_ind = ind_class(genotype=genotype, bounds=bounds)
                 new_individuals.append(new_ind)
             else:
-                new_individuals.append(population.individuals[i])
+                new_individuals.append(population[i])
 
-        population = Population(new_individuals, minimize=population.minimize)
+        population = Population(
+            new_individuals,
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
+        )
         return population
