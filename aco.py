@@ -40,6 +40,7 @@ Refactorizado por: @raguirregabiria, @yabol02, @aestoquera
 
 import math
 import random
+from copy import deepcopy
 from threading import Lock, Thread
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -56,7 +57,7 @@ class Ant(Thread):
         beta: float,
         q0: float,
         agent_index: int,
-        seed: int = None,
+        seed: Optional[int] = None,
     ):
         Thread.__init__(self)
         self.nodes = nodes
@@ -207,7 +208,7 @@ class Ant(Thread):
 class AntColony:
     def __init__(
         self,
-        nodes: List[Tuple[float, float]],
+        nodes: Tuple[Tuple[float, float]],
         ant_count: int = 50,
         alpha: float = 1.0,
         beta: float = 5.0,
@@ -218,6 +219,7 @@ class AntColony:
         stagnation_limit: int = 20,
         random_state: Optional[int] = None,
     ):
+        self._nodes_copy = deepcopy(nodes)
         self.nodes = nodes
         self.rho = rho
         self.iterations = iterations
@@ -232,6 +234,9 @@ class AntColony:
         self.best_distance = float("inf")
         self.distance_history = []
         self.stagnation_counter = 0
+        
+        self.evaluation_counts = 0
+        self.history = []
 
         self.lock = Lock()
         self.pheromone_map = {}
@@ -322,6 +327,7 @@ class AntColony:
                     self.stagnation_counter += 1
 
                 self.distance_history.append(self.best_distance)
+                self.history.append(self.best_distance)
 
                 # Evaporación global
                 self._evaporate_pheromones()
@@ -337,9 +343,9 @@ class AntColony:
 
                 print(
                     f"Iteración {iteration + 1}/{self.iterations}: "
-                    f"Mejor = {self.best_distance:.2f}, "
-                    f"Actual = {iteration_best:.2f}, "
-                    f"Promedio = {sum(a.trip_distance for a in valid_ants[:5])/5:.2f}"
+                    f"Mejor distancia = {self.best_distance:.2f}, "
+                    f"Actual mejor distancia = {iteration_best:.2f}, "
+                    f"Promedio de población = {sum(a.trip_distance for a in valid_ants[:5])/5:.2f}"
                 )
 
     def _evaporate_pheromones(self):
@@ -368,6 +374,8 @@ class AntColony:
 
     def distance(self, edge: Tuple) -> float:
         """Calcular distancia euclidiana entre dos nodos"""
+        self.evaluation_counts += 1
+
         (c1, c2) = edge
         dx = c1[0] - c2[0]
         dy = c1[1] - c2[1]
@@ -379,18 +387,11 @@ class AntColony:
             return (node1, node2)
         return (node2, node1)
 
-    def get_path(self) -> List[Tuple[float, float]]:
+    def get_path(self) -> List[int]:
         """Obtener el mejor camino encontrado"""
-        print(f"\n{'='*60}")
-        print(f"Distancia óptima encontrada: {self.best_distance:.2f}")
-        print(
-            f"Mejora desde inicio: {(self.distance_history[0] - self.best_distance):.2f}"
-        )
-        print(
-            f"Mejora porcentual: {((self.distance_history[0] - self.best_distance) / self.distance_history[0] * 100):.1f}%"
-        )
-        print(f"{'='*60}")
-        return self.best_path
+        ids_map = {tuple(node): id for id, node in enumerate(list(self._nodes_copy))}
+        ids_path = [ids_map[tuple(city)] for city in self.best_path][:-1]
+        return ids_path
 
     def get_distance_history(self) -> List[float]:
         """Obtener historial de distancias para análisis"""

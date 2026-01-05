@@ -7,6 +7,8 @@ from pymoo.visualization.scatter import Scatter
 from pyswarms.single import GlobalBestPSO
 from scipy.optimize import minimize
 
+from aco import AntColony
+
 from .configurations import ProblemConfig
 from .individual import Individual
 from .population import Population
@@ -598,11 +600,51 @@ class TSProblem(SingleObjectiveProblem):
         :return: Fitness value (inverse of path length).
         :rtype: float
         """
-        # TODO: We are considering only open paths for now, rewrite super().evaluate to pass this parameter
+        # TODO: We are considering only closed paths for now, rewrite super().evaluate to pass this parameter
         return 1 / (1 + self._sol_distance(solution, closed=closed_path))
 
-    def get_aco_results(self):
-        raise NotImplementedError("ACO format conversion not implemented yet.")
+    def get_aco_results(self, ant_count=50, iterations=20, **kwargs) -> SingleObjectiveResult:
+        """
+        Perform optimization using Ant Colony Optimization.
+        
+        :param ant_count: Number of ants in the colony
+        :type ant_count: int
+        :param iterations: Number of iterations to run the algorithm
+        :type iterations: int
+        :param kwargs: Additional keyword arguments for AntColony
+        :return: Optimization result
+        :rtype: SingleObjectiveResult
+        """
+        alpha = kwargs.get("alpha", 1.0)
+        beta = kwargs.get("beta", 2.0)
+        rho = kwargs.get("rho", 0.5)
+        q0 = kwargs.get("q0", 0.7)
+        elite = kwargs.get("elite", 3)
+        stagnation_limit = kwargs.get("stagnation_limit", 10)
+        random_state = kwargs.get("random_state", None)
+
+        colony = AntColony(
+            nodes=tuple(map(tuple, self.cities)),
+            ant_count=ant_count,
+            alpha=alpha,
+            beta=beta,
+            rho=rho,
+            q0=q0,
+            iterations=iterations,
+            elite_count=elite,
+            stagnation_limit=stagnation_limit,
+            random_state=random_state,
+        )
+
+        optimal_path = colony.get_path()
+
+        return SingleObjectiveResult(
+            problem_name="ACO_" + self.__class__.__name__,
+            best_fitness=self._fitness_function(optimal_path),
+            best_solution=optimal_path,
+            evaluations_used=colony.evaluation_counts,
+            history=colony.history,
+        )
 
 
 class PymooProblem(MultiObjectiveProblem):
@@ -937,5 +979,4 @@ class MOTSProblem(MultiObjectiveProblem):
         )
         scatter.add(pareto, color="blue", label="Obtained Front")
 
-        return scatter
         return scatter
