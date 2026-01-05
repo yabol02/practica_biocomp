@@ -181,45 +181,45 @@ class ScrambleMutation(Mutation):
                 new_inds.append(ind)
         return Population(new_inds, minimize=population.minimize)
 
-# class TwoOptSearchMutation(Mutation):
-#     """
-#     Aplicar una mejora 2-opt sencilla a cada individuo.
-#     
-#     
-#     [!] Esto lo vuelve un algoritmo memético:
-# 
-#     Pasos:
-#     - Explora todo el vecindario 2-opt del tour.
-#     - Evalúa sistemáticamente todos los pares (i, j).
-#     - Aplica una inversión solo si reduce la distancia.
-#     - Repite hasta que no exista ninguna mejora posible.
-#     """
-#     def __init__(self, mutation_rate: float = 1.0):
-#         self.mutation_rate = mutation_rate
-# 
-#     def mutate(self, population: Population) -> Population:
-#         new_inds = []
-#         for ind in population.individuals:
-#             if random.random() < self.mutation_rate:
-#                 genotype = ind.genotype.copy().tolist()
-#                 n = len(genotype)
-#                 improved = True
-#                 while improved:
-#                     improved = False
-#                     for i in range(n-1):
-#                         for j in range(i+1, n):
-#                             # Calcular cambio de costo
-#                             a, b = genotype[i], genotype[(i+1)%n]
-#                             c, d = genotype[j], genotype[(j+1)%n]
-#                             # Asumiendo distancia euclidiana o conocida en el individuo
-#                             delta = (ind.dist(a, c) + ind.dist(b, d)) - (ind.dist(a, b) + ind.dist(c, d))
-#                             if delta < 0:  # mejora
-#                                 genotype[i+1:j+1] = reversed(genotype[i+1:j+1])
-#                                 improved = True
-#                                 break
-#                         if improved:
-#                             break
-#                 new_inds.append(ind.__class__(genotype=genotype, bounds=ind.bounds))
-#             else:
-#                 new_inds.append(ind)
-#         return Population(new_inds, minimize=population.minimize)
+class TwoOptSearchMutation(Mutation):
+    """
+    Aplicar una mejora 2-opt sencilla a cada individuo.
+    
+    
+    [!] Esto lo vuelve un algoritmo memético (Habría que aumentar el contador de evaluaciones para usarlo):    
+
+    Pasos:
+    - Explora todo el vecindario 2-opt del tour.
+    - Evalúa sistemáticamente todos los pares (i, j).
+    - Aplica una inversión solo si reduce la distancia.
+    - Repite hasta que no exista ninguna mejora posible.
+    """
+    def __init__(self, mutation_rate: float = 1.0):
+        self.mutation_rate = mutation_rate
+
+    def mutate(self, population: Population) -> Population:
+        new_inds = []
+        for ind in population.individuals:
+            if random.random() < self.mutation_rate:
+                genotype = ind.genotype.copy().tolist()
+                n = len(genotype)
+                improved = True
+                while improved:
+                    improved = False
+                    for i in range(n-1):
+                        for j in range(i+1, n):
+                            # Calcular cambio de costo
+                            a, b = genotype[i], genotype[(i+1)%n]
+                            c, d = genotype[j], genotype[(j+1)%n]
+                            # Asumiendo distancia euclidiana o conocida en el individuo
+                            delta = (ind.dist(a, c) + ind.dist(b, d)) - (ind.dist(a, b) + ind.dist(c, d))
+                            if delta < 0:  # mejora
+                                genotype[i+1:j+1] = reversed(genotype[i+1:j+1])
+                                improved = True
+                                break
+                        if improved:
+                            break
+                new_inds.append(ind.__class__(genotype=genotype, bounds=ind.bounds))
+            else:
+                new_inds.append(ind)
+        return Population(new_inds, minimize=population.minimize)
