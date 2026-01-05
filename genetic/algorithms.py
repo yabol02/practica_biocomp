@@ -104,18 +104,25 @@ class GeneticAlgorithmSO:
 
         self._generation_count += 1
 
-    def run(self) -> SingleObjectiveResult:
+    def run(self, num_iterations: Optional[int] = None) -> SingleObjectiveResult:
         """
         Complete execution of the algorithm until the budget is exhausted.
 
+        :param num_iterations: Optional number of iterations to run
+        :type num_iterations: Optional[int]
         :return: Optimization result
         :rtype: SingleObjectiveResult
         """
         if self._current_population is None:
             self.initialize()
 
+        iterations_done = 0
         while not self.problem.reached_budget():
+            if num_iterations is not None and iterations_done >= num_iterations:
+                break
+
             self.step()
+            iterations_done += 1
 
             if self._generation_count % self.print_interval == 0:
                 stats = self._current_population.stats
@@ -124,7 +131,7 @@ class GeneticAlgorithmSO:
                     f"Evals: {self.problem.evaluations_count:7d} | "
                     f"Best Global: {stats['best']:.5f} | "
                     f"Current Population: {stats['mean']:.5f} ± {stats['std']:.3e}"
-                    )
+                )
 
         self._current_population.evaluate_population(self.problem.evaluate)
         self.problem.update_history(self._current_population)
@@ -148,14 +155,7 @@ class GeneticAlgorithmSO:
 
 
 class GeneticAlgorithmMO:
-    """
-    Multi-Objective Genetic Algorithm implementation.
-
-    Supports different optimization strategies:
-    - 'pareto': Pareto-based selection (NSGA-II style)
-    - 'weighted': Weighted sum approach
-    - 'sequential': Sequential optimization of objectives
-    """
+    """Multi-Objective Genetic Algorithm implementation."""
 
     def __init__(
         self,
