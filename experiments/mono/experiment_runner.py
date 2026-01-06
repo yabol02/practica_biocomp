@@ -173,9 +173,10 @@ class ExperimentRunner:
         execution_time = time.time() - start_time
 
         # Calculate convergence rate (how quickly best fitness was found)
+        # Only calculate if best solution was found (best_solution_found_on >= 0)
         convergence_rate = (
             result.best_solution_found_on / result.evaluations_used
-            if result.evaluations_used > 0
+            if result.evaluations_used > 0 and result.best_solution_found_on >= 0
             else 0.0
         )
 
