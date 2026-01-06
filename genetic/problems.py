@@ -93,6 +93,7 @@ class SingleObjectiveProblem(Problem):
         self.minimize = minimize
         self.n_var: int = 1
         self.best_fitness: float = float("inf") if minimize else float("-inf")
+        self.best_sol_found_on: int = -1
         self.best_solution: Optional[Individual] = None
         self.mean_history: List = []
         self.std_history: List = []
@@ -114,6 +115,7 @@ class SingleObjectiveProblem(Problem):
         if self._is_better(fitness, self.best_fitness):
             self.best_fitness = fitness
             self.best_solution = solution.copy()
+            self.best_sol_found_on = self.evaluations_count
 
         return fitness
 
@@ -169,6 +171,7 @@ class SingleObjectiveProblem(Problem):
             problem_name=self.__class__.__name__,
             best_fitness=self.best_fitness,
             best_solution=self.best_solution,
+            best_solution_found_on=self.best_sol_found_on,
             evaluations_used=self.evaluations_count,
             history=self.history,
         )
