@@ -18,14 +18,14 @@ import numpy as np
 
 from genetic.algorithms import GeneticAlgorithmSO
 from genetic.configurations import ProblemConfig
-from genetic.crossover import BlendCrossover, OrderCrossover
+from genetic.crossover import BlendCrossover, Crossover, OrderCrossover
 from genetic.initialization import (Initialization, NeighborInitialization,
                                     PermutationInitialization,
                                     RandomInitialization)
-from genetic.mutation import SwapMutation, UniformMutation
+from genetic.mutation import Mutation, SwapMutation, UniformMutation
 from genetic.problems import HimmelblauProblem, TSProblem
 from genetic.replacement import (ElitistReplacement, GenerationalReplacement,
-                                 MuPlusLambdaReplacement)
+                                 MuPlusLambdaReplacement, Replacement)
 from genetic.selection import Selection, TournamentSelection
 
 
@@ -38,9 +38,9 @@ class ExperimentConfig:
     problem_params: Dict
     initialization: Initialization
     selection: Selection
-    crossover: object
-    mutation: object
-    replacement: object
+    crossover: Crossover
+    mutation: Mutation
+    replacement: Replacement
     population_size: int
     max_evaluations: int
 
@@ -226,9 +226,7 @@ class ExperimentRunner:
         )
 
         # Create list of all experiment tasks
-        tasks = [
-            (config, seed) for config in configs for seed in seeds
-        ]
+        tasks = [(config, seed) for config in configs for seed in seeds]
 
         # Execute experiments in parallel
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -274,9 +272,7 @@ class ExperimentRunner:
         :type results: List[ExperimentResult]
         """
         if not results:
-            self.logger.warning(
-                f"No results to save for config_id={config.config_id}"
-            )
+            self.logger.warning(f"No results to save for config_id={config.config_id}")
             return
 
         # Create output file path
@@ -286,9 +282,7 @@ class ExperimentRunner:
         with open(output_file, "w", newline="") as f:
             # Get all field names from result and config
             result_fields = list(results[0].to_dict().keys())
-            config_fields = [
-                k for k in config.to_dict().keys() if k != "config_id"
-            ]
+            config_fields = [k for k in config.to_dict().keys() if k != "config_id"]
 
             fieldnames = result_fields + config_fields
 
@@ -377,9 +371,7 @@ def create_himmelblau_configs() -> List[ExperimentConfig]:
     initializations = [RandomInitialization()]
     selections = [TournamentSelection(tournament_size=3)]
     crossovers = [BlendCrossover(alpha=0.5)]
-    mutations = [
-        UniformMutation(mutation_rate=0.1, bounds=[(-5.0, 5.0), (-5.0, 5.0)])
-    ]
+    mutations = [UniformMutation(mutation_rate=0.1, bounds=[(-5.0, 5.0), (-5.0, 5.0)])]
     replacements = [
         GenerationalReplacement(),
         ElitistReplacement(elite_size=2),
