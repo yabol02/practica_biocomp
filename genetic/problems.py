@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.optimize import minimize as pymoo_minimize
 from pymoo.problems import get_problem
 from pymoo.visualization.scatter import Scatter
 from pyswarms.single import GlobalBestPSO
-from scipy.optimize import minimize
+from scipy.optimize import minimize as scipy_minimize
 
 from aco import AntColony
 
@@ -89,6 +91,7 @@ class SingleObjectiveProblem(Problem):
     def __init__(self, config: ProblemConfig, minimize: bool = True):
         super().__init__(config)
         self.minimize = minimize
+        self.n_var: int = 1
         self.best_fitness: float = float("inf") if minimize else float("-inf")
         self.best_solution: Optional[Individual] = None
         self.mean_history: List = []
@@ -208,7 +211,15 @@ class MultiObjectiveProblem(Problem):
         self.all_objectives: List[np.ndarray] = []
         self.all_solutions: List[np.ndarray] = []
 
-    def evaluate(self, solution: List) -> List[float]:
+    def reset(self):
+        super().reset()
+        self.pareto_front = np.empty((0, self.n_objectives))
+        self.pareto_solutions = np.empty((0, 0))
+        self.pareto_history = []
+        self.all_objectives = []
+        self.all_solutions = []
+
+    def evaluate(self, solution: List, **kwargs) -> List[float]:
         """
         Evaluate solution (multi-objective).
 
@@ -367,6 +378,24 @@ class MultiObjectiveProblem(Problem):
             metrics=metrics,
         )
 
+    @abstractmethod
+    def get_nsga2_result(
+        self, pop_size: int = 100, seed: Optional[int] = None, verbose: bool = False
+    ) -> MultiObjectiveResult:
+        """
+        Optimize using NSGA-II algorithm from pymoo. TO BE IMPLEMENTED IN SUBCLASSES.
+
+        :param pop_size: Population size
+        :type pop_size: int
+        :param seed: Random seed for reproducibility
+        :type seed: Optional[int]
+        :param verbose: Whether to print progress
+        :type verbose: bool
+        :return: Multi-objective optimization result
+        :rtype: MultiObjectiveResult
+        """
+        raise NotImplementedError()
+
     def plot_pareto_front(
         self, show_true_front: bool = False, problem_name: str = ""
     ) -> Scatter:
@@ -467,13 +496,15 @@ class HimmelblauProblem(SingleObjectiveProblem):
 
         cost, pos = optimizer.optimize(self._fitness_function, iters=3500, verbose=pbar)
 
-        return SingleObjectiveResult(
+        self.result_pyswarms = SingleObjectiveResult(
             problem_name="PySwarms" + self.__class__.__name__,
             best_fitness=cost,
             best_solution=pos,
             evaluations_used=len(optimizer.cost_history),
             history=optimizer.cost_history,
         )
+
+        return self.result_pyswarms
 
     def get_scipy_result(
         self,
@@ -509,7 +540,7 @@ class HimmelblauProblem(SingleObjectiveProblem):
 
         scipy_bounds = [(b[0], b[1]) for b in self.bounds]
 
-        result = minimize(
+        result = scipy_minimize(
             tracked_fitness,
             x0=x0,
             method=method,
@@ -517,13 +548,15 @@ class HimmelblauProblem(SingleObjectiveProblem):
             tol=tol,
         )
 
-        return SingleObjectiveResult(
+        self.result_scipy = SingleObjectiveResult(
             problem_name=f"Scipy_{method}_{self.__class__.__name__}",
             best_fitness=result.fun,
             best_solution=result.x.tolist(),
             evaluations_used=eval_count,
             history=history,
         )
+
+        return self.result_scipy
 
 
 class TSProblem(SingleObjectiveProblem):
@@ -603,10 +636,12 @@ class TSProblem(SingleObjectiveProblem):
         # TODO: We are considering only closed paths for now, rewrite super().evaluate to pass this parameter
         return 1 / (1 + self._sol_distance(solution, closed=closed_path))
 
-    def get_aco_results(self, ant_count=50, iterations=20, **kwargs) -> SingleObjectiveResult:
+    def get_aco_result(
+        self, ant_count=50, iterations=20, **kwargs
+    ) -> SingleObjectiveResult:
         """
         Perform optimization using Ant Colony Optimization.
-        
+
         :param ant_count: Number of ants in the colony
         :type ant_count: int
         :param iterations: Number of iterations to run the algorithm
@@ -638,13 +673,15 @@ class TSProblem(SingleObjectiveProblem):
 
         optimal_path = colony.get_path()
 
-        return SingleObjectiveResult(
+        self.result_aco = SingleObjectiveResult(
             problem_name="ACO_" + self.__class__.__name__,
             best_fitness=self._fitness_function(optimal_path),
             best_solution=optimal_path,
             evaluations_used=colony.evaluation_counts,
             history=colony.history,
         )
+
+        return self.result_aco
 
 
 class PymooProblem(MultiObjectiveProblem):
@@ -669,13 +706,13 @@ class PymooProblem(MultiObjectiveProblem):
 
         self.pymoo_problem = get_problem(problem_name.lower(), **problem_kwargs)
 
-        super().__init__(config, n_objectives=self.pymoo_problem.n_obj)
-
         self.problem_name = problem_name.upper()
         self.n_var = self.pymoo_problem.n_var
         self.lower_bound = self.pymoo_problem.xl
         self.upper_bound = self.pymoo_problem.xu
         self.minimize = True
+
+        super().__init__(config, n_objectives=self.pymoo_problem.n_obj)
 
     def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
         """
@@ -717,6 +754,60 @@ class PymooProblem(MultiObjectiveProblem):
         :rtype: Optional[np.ndarray]
         """
         return self.pymoo_problem.pareto_front()
+
+    def get_nsga2_result(
+        self, pop_size: int = 100, seed: Optional[int] = None, verbose: bool = False
+    ) -> MultiObjectiveResult:
+        """
+        Optimize using NSGA-II algorithm from pymoo.
+
+        :param pop_size: Population size
+        :type pop_size: int
+        :param seed: Random seed for reproducibility
+        :type seed: Optional[int]
+        :param verbose: Whether to print progress
+        :type verbose: bool
+        :return: Multi-objective optimization result
+        :rtype: MultiObjectiveResult
+        """
+        self.reset()
+
+        algorithm = NSGA2(pop_size=pop_size)
+        n_gen = self.config.max_evaluations // pop_size
+        res = pymoo_minimize(
+            problem=self.pymoo_problem,
+            algorithm=algorithm,
+            termination=("n_gen", n_gen),
+            verbose=verbose,
+            seed=seed,
+        )
+
+        if res.F is not None and res.X is not None:
+            self.pareto_solutions = res.X
+            self.pareto_front = res.F
+            self.pareto_history.append((res.F.copy(), self.pareto_solutions.copy()))
+
+        metrics = {
+            "n_pareto_solutions": len(self.pareto_front),
+            "pareto_spread": (
+                np.mean(np.var(self.pareto_front, axis=0))
+                if np.any(self.pareto_front)
+                else None
+            ),
+            "history_length": len(self.pareto_history),
+            "algorithm": "NSGA-II",
+            "pop_size": pop_size,
+            "n_gen": n_gen,
+        }
+
+        return MultiObjectiveResult(
+            problem_name=self.__class__.__name__,
+            best_fitness=self.pareto_front,
+            best_solution=self.pareto_solutions,
+            evaluations_used=self.evaluations_count,
+            pareto_front=self.pareto_front,
+            metrics=metrics,
+        )
 
 
 class MOTSProblem(MultiObjectiveProblem):
