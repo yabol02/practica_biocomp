@@ -1,7 +1,7 @@
 import random
 
-from classes.configurations import ProblemConfig
-from classes.problems import HimmelblauProblem
+from genetic.configurations import ProblemConfig
+from genetic.problems import HimmelblauProblem
 
 config = ProblemConfig(max_evaluations=3500, seed=42, output_dir="results/himmelblau")
 problem = HimmelblauProblem(config)

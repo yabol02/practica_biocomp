@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 from pyswarms.single import GlobalBestPSO
 
-from classes.population import Population
+from genetic.population import Population
 
 from .configurations import ProblemConfig
 from .individual import Individual
