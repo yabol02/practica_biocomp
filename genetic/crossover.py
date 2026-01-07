@@ -12,12 +12,14 @@ class Crossover(ABC):
     """Abstract base class for crossover operators."""
 
     @abstractmethod
-    def cross(self, population: Population) -> Population:
+    def cross(self, population: Population, n_offspring: int) -> Population:
         """
         Perform crossover on population.
 
         :param population: Population to apply crossover
         :type population: Population
+        :param n_offspring: Number of offspring to generate
+        :type n_offspring: int
         :return: New population after crossover
         :rtype: Population
         """
@@ -27,33 +29,50 @@ class Crossover(ABC):
         """Alias for `cross` method."""
         return self.cross(*args, **kwargs)
 
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
 
 class OrderCrossover(Crossover):
     """Single-point order crossover for permutation problems."""
 
-    def cross(self, population: Population) -> Population:
+    def cross(self, population: Population, n_offspring: int) -> Population:
         """
         Apply single-point order crossover to population pairs.
 
         :param population: Population to apply crossover
         :type population: Population
+        :param n_offspring: Number of offspring to generate
+        :type n_offspring: int
         :return: Population with offspring
         :rtype: Population
         """
+
         new_individuals: List[Individual] = []
         genome_length = len(population[0].genotype)
+        pop_size = len(population)
 
-        for i in range(0, len(population), 2):
-            parent1 = population[i]
-            parent2 = population[i + 1] if i + 1 < len(population) else parent1
+        while len(new_individuals) < n_offspring:
+            indices = random.sample(range(pop_size), 2)
+            parent1 = population[indices[0]]
+            parent2 = population[indices[1]]
 
             cross_point = random.randint(1, genome_length - 1)
 
             child1, child2 = self._crossover_individuals(parent1, parent2, cross_point)
-            new_individuals.extend([child1, child2])
+            new_individuals.append(child1)
+
+            if len(new_individuals) < n_offspring:
+                new_individuals.append(child2)
 
         population = Population(
-            new_individuals[: len(population)], minimize=population.minimize
+            new_individuals[:n_offspring],
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
         )
         return population
 
@@ -104,22 +123,37 @@ class BlendCrossover(Crossover):
         """
         self.alpha = alpha
 
-    def cross(self, population: Population) -> Population:
+    def cross(self, population: Population, n_offspring: int) -> Population:
         """
         Apply blend crossover to population pairs.
 
         :param population: Population to apply crossover
         :type population: Population
+        :param n_offspring: Number of offspring to generate
+        :type n_offspring: int
         :return: Population with offspring
         :rtype: Population
         """
+
         new_individuals = []
-        for i in range(0, len(population), 2):
-            parent1 = population[i]
-            parent2 = population[i + 1] if i + 1 < len(population) else population[i]
+        pop_size = len(population)
+
+        while len(new_individuals) < n_offspring:
+            indices = random.sample(range(pop_size), 2)
+            parent1 = population[indices[0]]
+            parent2 = population[indices[1]]
+
             child1, child2 = self._blend_individuals(parent1, parent2)
-            new_individuals.extend([child1, child2])
-        population = Population(new_individuals, minimize=population.minimize)
+            new_individuals.append(child1)
+
+            if len(new_individuals) < n_offspring:
+                new_individuals.append(child2)
+
+        population = Population(
+            new_individuals[:n_offspring],
+            minimize=population.minimize,
+            multiobjective=population.multiobjective,
+        )
         return population
 
     def _blend_individuals(
@@ -138,7 +172,9 @@ class BlendCrossover(Crossover):
         child1_genotype = []
         child2_genotype = []
 
-        for g1, g2 in zip(parent1.genotype, parent2.genotype):
+        bounds = parent1.bounds
+
+        for i, (g1, g2) in enumerate(zip(parent1.genotype, parent2.genotype)):
             min_val = min(g1, g2)
             max_val = max(g1, g2)
             range_val = max_val - min_val

@@ -1,13 +1,17 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+from pymoo.problems import get_problem
+from pymoo.visualization.scatter import Scatter
 from pyswarms.single import GlobalBestPSO
+from scipy.optimize import minimize
 
-from genetic.population import Population
+from aco import AntColony
 
 from .configurations import ProblemConfig
 from .individual import Individual
+from .population import Population
 from .results import (MultiObjectiveResult, OptimizationResult,
                       SingleObjectiveResult)
 
@@ -72,6 +76,12 @@ class Problem(ABC):
         self.evaluations_count = 0
         self.history = []
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(evals={self.evaluations_count}/{self.config.max_evaluations})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__} | Budget Used: {self.evaluations_count}>"
+
 
 class SingleObjectiveProblem(Problem):
     """Base class for single-objective problems."""
@@ -81,6 +91,10 @@ class SingleObjectiveProblem(Problem):
         self.minimize = minimize
         self.best_fitness: float = float("inf") if minimize else float("-inf")
         self.best_solution: Optional[Individual] = None
+        self.mean_history: List = []
+        self.std_history: List = []
+        self.best_history: List = []
+        self.worst_history: List = []
 
     def evaluate(self, solution: List) -> float:
         """
@@ -127,14 +141,19 @@ class SingleObjectiveProblem(Problem):
         """
         pass
 
-    def update_history(self, current_best: float) -> None:
+    def update_history(self, population: Population) -> None:
         """
-        Update history with current best fitness.
+        Update history with current population stats.
 
-        :param current_best: Best fitness in current generation
-        :type current_best: float
+        :param population: Current population
+        :type population: Population
         """
-        self.history.append(current_best)
+        stats = population.stats
+        self.history.append(population.best_individual.fitness)
+        self.mean_history.append(stats.get("mean"))
+        self.std_history.append(stats.get("std"))
+        self.best_history.append(stats.get("best"))
+        self.worst_history.append(stats.get("worst"))
 
     def get_result(self) -> SingleObjectiveResult:
         """
@@ -151,6 +170,23 @@ class SingleObjectiveProblem(Problem):
             history=self.history,
         )
 
+    def __repr__(self) -> str:
+        best = (
+            f"{self.best_fitness:.4f}"
+            if self.best_fitness not in [float("inf"), float("-inf")]
+            else "None"
+        )
+        return f"{self.__class__.__name__}(best={best}, evals={self.evaluations_count}/{self.config.max_evaluations})"
+
+    def __str__(self) -> str:
+        best = (
+            f"{self.best_fitness:.4f}"
+            if self.best_fitness not in [float("inf"), float("-inf")]
+            else "None"
+        )
+        mode = "min" if self.minimize else "max"
+        return f"<{self.__class__.__name__} ({mode}) | Best Fitness: {best}>"
+
 
 class MultiObjectiveProblem(Problem):
     """Base class for multi-objective problems."""
@@ -166,8 +202,11 @@ class MultiObjectiveProblem(Problem):
         """
         super().__init__(config)
         self.n_objectives = n_objectives
-        self.pareto_front: List[List[float]] = []
-        self.pareto_solutions: List[List] = []
+        self.pareto_front: np.ndarray = np.empty((0, n_objectives))
+        self.pareto_solutions: np.ndarray = np.empty((0, 0))
+        self.pareto_history: List[Tuple[np.ndarray, np.ndarray]] = []
+        self.all_objectives: List[np.ndarray] = []
+        self.all_solutions: List[np.ndarray] = []
 
     def evaluate(self, solution: List) -> List[float]:
         """
@@ -179,10 +218,15 @@ class MultiObjectiveProblem(Problem):
         :rtype: List[float]
         """
         self.evaluations_count += 1
-        return self._fitness_function(solution)
+        objectives = self._fitness_function(solution)
+
+        self.all_objectives.append(np.asanyarray(objectives))
+        self.all_solutions.append(np.asanyarray(solution))
+
+        return np.array(objectives)
 
     @abstractmethod
-    def _fitness_function(self, solution: List) -> List[float]:
+    def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
         """
         Problem-specific multi-objective fitness function.
 
@@ -193,19 +237,109 @@ class MultiObjectiveProblem(Problem):
         """
         pass
 
+    def _calculate_non_dominated(
+        self, objectives: np.ndarray, solutions: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Auxiliar method to filter dominated solutions from a given set.
+
+        :param objectives: Array of objective vectors
+        :type objectives: np.ndarray
+        :param solutions: Corresponding solutions
+        :type solutions: np.ndarray
+        :return: Non-dominated objectives and corresponding solutions
+        :rtype: Tuple[np.ndarray, np.ndarray]
+        """
+        is_dominated = np.zeros(len(objectives), dtype=bool)
+
+        for i, obj_i in enumerate(objectives):
+            if is_dominated[i]:
+                continue
+            for j, obj_j in enumerate(objectives):
+                if i != j and not is_dominated[j]:
+                    if self.dominates(obj_j, obj_i):
+                        is_dominated[i] = True
+                        break
+
+        return objectives[~is_dominated], solutions[~is_dominated]
+
+    @property
+    def true_pareto_front(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Obtain the 'true' Pareto front calculated over ALL historical solutions.
+
+        :return: Non-dominated objectives and corresponding solutions
+        :rtype: Tuple[np.ndarray, np.ndarray]
+        """
+        if not self.all_objectives:
+            return np.array([]), np.array([])
+
+        all_obj_flat = np.vstack(self.all_objectives)
+        all_sol_flat = np.vstack(self.all_solutions)
+
+        return self._calculate_non_dominated(all_obj_flat, all_sol_flat)
+
+    def dominates(self, obj1: np.ndarray, obj2: np.ndarray) -> bool:
+        """
+        Check if obj1 dominates obj2 (Pareto dominance).
+
+        :param obj1: First objective vector
+        :type obj1: np.ndarray
+        :param obj2: Second objective vector
+        :type obj2: np.ndarray
+        :return: True if obj1 dominates obj2
+        :rtype: bool
+        """
+        return np.all(obj1 <= obj2) and np.any(obj1 < obj2)
+
     def update_pareto_front(
-        self, objectives: List[List[float]], solutions: List[List]
+        self, new_objectives: List[np.ndarray], new_solutions: List[np.ndarray]
     ) -> None:
         """
-        Update Pareto front with new solutions.
+        Update Pareto front with new solutions using non-dominated sorting.
 
-        :param objectives: List of objective vectors
-        :type objectives: List[List[float]]
-        :param solutions: Corresponding solutions
-        :type solutions: List[List]
+        :param new_objectives: List of objective vectors
+        :type new_objectives: List[np.ndarray]
+        :param new_solutions: Corresponding solutions
+        :type new_solutions: List[np.ndarray]
         """
-        self.pareto_front = objectives
-        self.pareto_solutions = solutions
+        if not new_objectives:
+            return
+
+        objectives_array = np.asanyarray(new_objectives)
+        solutions_array = np.asanyarray(new_solutions)
+
+        if self.pareto_front.size > 0:
+            combined_objectives = np.vstack((self.pareto_front, objectives_array))
+            combined_solutions = np.vstack((self.pareto_solutions, solutions_array))
+        else:
+            combined_objectives = objectives_array
+            combined_solutions = solutions_array
+
+        best_obj, best_sol = self._calculate_non_dominated(
+            combined_objectives, combined_solutions
+        )
+
+        self.pareto_front = best_obj
+        self.pareto_solutions = best_sol
+        self.pareto_history.append((best_obj.copy(), best_sol.copy()))
+
+    def update_history(self, current_objectives: Optional[np.ndarray] = None) -> None:
+        """
+        Update history with current Pareto front metrics.
+        If available, it stores the number of non-dominated solutions and hypervolume.
+
+        :param current_objectives: Current population objectives (optional)
+        :type current_objectives: Optional[np.ndarray]
+        """
+        metrics = {
+            "generation": len(self.history),
+            "pareto": self.pareto_solutions.copy(),
+            "pareto_spread": np.mean(np.var(self.pareto_front, axis=0)),
+            "nd_ratio": len(self.pareto_front) / len(current_objectives),
+        }
+
+        self.history.append(metrics)
 
     def get_result(self) -> MultiObjectiveResult:
         """
@@ -214,14 +348,58 @@ class MultiObjectiveProblem(Problem):
         :return: Result object
         :rtype: MultiObjectiveResult
         """
+        final_front, final_sols = self.true_pareto_front
+
+        metrics = {
+            "n_pareto_solutions": len(final_front),
+            "pareto_spread": (
+                np.mean(np.var(final_front, axis=0)) if np.any(final_front) else None
+            ),
+            "history_length": len(self.pareto_history),
+        }
+
         return MultiObjectiveResult(
             problem_name=self.__class__.__name__,
-            best_fitness=self.pareto_front,
-            best_solution=self.pareto_solutions,
+            best_fitness=final_front,
+            best_solution=final_sols,
             evaluations_used=self.evaluations_count,
-            pareto_front=self.pareto_front,
-            metrics={},
+            pareto_front=final_front,
+            metrics=metrics,
         )
+
+    def plot_pareto_front(
+        self, show_true_front: bool = False, problem_name: str = ""
+    ) -> Scatter:
+        """
+        Plot the obtained Pareto front.
+
+        :param show_true_front: Whether to show the true Pareto front (if available)
+        :type show_true_front: bool
+        """
+        if not np.any(self.pareto_front):
+            print("No Pareto front available yet.")
+            return
+
+        pareto = np.asarray(self.pareto_front)
+
+        problem_name = problem_name if problem_name else self.__class__.__name__
+        scatter = Scatter(title=f"{problem_name} - Pareto Front")
+        scatter.add(pareto, color="blue", label="Obtained")
+
+        if show_true_front and hasattr(self, "get_true_pareto_front"):
+            true_front = self.get_true_pareto_front()
+            if true_front is not None:
+                scatter.add(true_front, color="red", label="True Front", alpha=0.5)
+
+        return scatter
+
+    def __repr__(self) -> str:
+        n_pareto = len(self.pareto_front) if self.pareto_front.size > 0 else 0
+        return f"{self.__class__.__name__}(objectives={self.n_objectives}, pareto_size={n_pareto}, evals={self.evaluations_count})"
+
+    def __str__(self) -> str:
+        n_pareto = len(self.pareto_front) if self.pareto_front.size > 0 else 0
+        return f"<{self.__class__.__name__} | Objectives: {self.n_objectives} | Pareto Solutions: {n_pareto}>"
 
 
 class HimmelblauProblem(SingleObjectiveProblem):
@@ -297,11 +475,66 @@ class HimmelblauProblem(SingleObjectiveProblem):
             history=optimizer.cost_history,
         )
 
+    def get_scipy_result(
+        self,
+        method: str = "L-BFGS-B",
+        x0: Optional[List[float]] = None,
+        tol: float = 1e-8,
+    ) -> SingleObjectiveResult:
+        """
+        Optimize using scipy.optimize.minimize.
+
+        :param method: Optimization method (e.g., 'L-BFGS-B', 'SLSQP', 'Nelder-Mead')
+        :type method: str
+        :param x0: Initial guess. If None, uses center of bounds.
+        :type x0: Optional[List[float]]
+        :param tol: Tolerance for termination.
+        :type tol: float
+        :return: Scipy optimization result
+        :rtype: SingleObjectiveResult
+        """
+
+        eval_count = 0
+        history = []
+
+        def tracked_fitness(x):
+            nonlocal eval_count
+            eval_count += 1
+            fitness = self._fitness_function(x)
+            history.append(fitness)
+            return fitness
+
+        if x0 is None:
+            x0 = [(b[0] + b[1]) / 2 for b in self.bounds]
+
+        scipy_bounds = [(b[0], b[1]) for b in self.bounds]
+
+        result = minimize(
+            tracked_fitness,
+            x0=x0,
+            method=method,
+            bounds=scipy_bounds,
+            tol=tol,
+        )
+
+        return SingleObjectiveResult(
+            problem_name=f"Scipy_{method}_{self.__class__.__name__}",
+            best_fitness=result.fun,
+            best_solution=result.x.tolist(),
+            evaluations_used=eval_count,
+            history=history,
+        )
+
 
 class TSProblem(SingleObjectiveProblem):
     """Traveling Salesman Problem (TSP)."""
 
-    def __init__(self, config: ProblemConfig, cities: List[Tuple[float, float]], minimize: bool = True):
+    def __init__(
+        self,
+        config: ProblemConfig,
+        cities: Iterable[Tuple[float, float]],
+        minimize: bool = True,
+    ):
         super().__init__(config, minimize)
         self.cities = np.asanyarray(cities, dtype=np.float64)
         self.n_cities = self.cities.shape[0]
@@ -367,8 +600,383 @@ class TSProblem(SingleObjectiveProblem):
         :return: Fitness value (inverse of path length).
         :rtype: float
         """
-        # TODO: We are considering only open paths for now, rewrite super().evaluate to pass this parameter
+        # TODO: We are considering only closed paths for now, rewrite super().evaluate to pass this parameter
         return 1 / (1 + self._sol_distance(solution, closed=closed_path))
 
-    def get_aco_results(self):
-        raise NotImplementedError("ACO format conversion not implemented yet.")
+    def get_aco_results(self, ant_count=50, iterations=20, **kwargs) -> SingleObjectiveResult:
+        """
+        Perform optimization using Ant Colony Optimization.
+        
+        :param ant_count: Number of ants in the colony
+        :type ant_count: int
+        :param iterations: Number of iterations to run the algorithm
+        :type iterations: int
+        :param kwargs: Additional keyword arguments for AntColony
+        :return: Optimization result
+        :rtype: SingleObjectiveResult
+        """
+        alpha = kwargs.get("alpha", 1.0)
+        beta = kwargs.get("beta", 2.0)
+        rho = kwargs.get("rho", 0.5)
+        q0 = kwargs.get("q0", 0.7)
+        elite = kwargs.get("elite", 3)
+        stagnation_limit = kwargs.get("stagnation_limit", 10)
+        random_state = kwargs.get("random_state", None)
+
+        colony = AntColony(
+            nodes=tuple(map(tuple, self.cities)),
+            ant_count=ant_count,
+            alpha=alpha,
+            beta=beta,
+            rho=rho,
+            q0=q0,
+            iterations=iterations,
+            elite_count=elite,
+            stagnation_limit=stagnation_limit,
+            random_state=random_state,
+        )
+
+        optimal_path = colony.get_path()
+
+        return SingleObjectiveResult(
+            problem_name="ACO_" + self.__class__.__name__,
+            best_fitness=self._fitness_function(optimal_path),
+            best_solution=optimal_path,
+            evaluations_used=colony.evaluation_counts,
+            history=colony.history,
+        )
+
+
+class PymooProblem(MultiObjectiveProblem):
+    """Wrapper for pymoo multi-objective problems."""
+
+    def __init__(
+        self, config, problem_name: str, n_var: Optional[int] = None, **problem_kwargs
+    ):
+        """
+        Initialize Pymoo problem.
+
+        :param config: Problem configuration
+        :type config: ProblemConfig
+        :param problem_name: Name of the pymoo problem (e.g., 'zdt1', 'zdt3', 'mw7', 'mw14')
+        :type problem_name: str
+        :param n_var: Number of variables (optional, uses Pymoo default if not provided)
+        :type n_var: Optional[int]
+        :param problem_kwargs: Additional problem-specific arguments
+        """
+        if n_var is not None:
+            problem_kwargs["n_var"] = n_var
+
+        self.pymoo_problem = get_problem(problem_name.lower(), **problem_kwargs)
+
+        super().__init__(config, n_objectives=self.pymoo_problem.n_obj)
+
+        self.problem_name = problem_name.upper()
+        self.n_var = self.pymoo_problem.n_var
+        self.lower_bound = self.pymoo_problem.xl
+        self.upper_bound = self.pymoo_problem.xu
+        self.minimize = True
+
+    def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
+        """
+        Evaluate the problem.
+
+        :param solution: Solution to evaluate
+        :type solution: Union[List, np.ndarray]
+        :return: Objective values
+        :rtype: np.ndarray
+        """
+        solution = np.asanyarray(solution)
+
+        if solution.ndim == 1:
+            solution = solution.reshape(1, -1)
+
+        return self.pymoo_problem.evaluate(solution, return_values_of=["F"]).squeeze()
+
+    def get_bounds(self) -> List[Tuple[float, float]]:
+        """
+        Get variable bounds.
+
+        :return: List of (min, max) bounds for each variable
+        :rtype: List[Tuple[float, float]]
+        """
+        if isinstance(self.lower_bound, np.ndarray):
+            return [
+                (float(l), float(u)) for l, u in zip(self.lower_bound, self.upper_bound)
+            ]
+        else:
+            return [(float(self.lower_bound), float(self.upper_bound))] * self.n_var
+
+    def get_true_pareto_front(self, n_points: int = 100) -> Optional[np.ndarray]:
+        """
+        Get the true Pareto front from Pymoo (if available).
+
+        :param n_points: Number of points to sample
+        :type n_points: int
+        :return: True Pareto front or None
+        :rtype: Optional[np.ndarray]
+        """
+        return self.pymoo_problem.pareto_front()
+
+
+class MOTSProblem(MultiObjectiveProblem):
+    """
+    Multi-Objective Traveling Salesman Problem (MO-TSP).
+
+    This problem extends the classic TSP by introducing a second objective: travel time.
+    While distance is computed as Euclidean distance between cities, travel time accounts
+    for elevation differences between cities, generated using Perlin noise.
+
+    Objectives:
+        1. Total distance: Sum of Euclidean distances along the tour.
+        2. Total time: Sum of travel times considering terrain elevation changes.
+
+    The time calculation penalizes uphill travel and provides a small benefit for
+    downhill travel, simulating realistic terrain traversal.
+    """
+
+    # Perlin noise parameters for elevation generation
+    PERLIN_SCALE: float = 0.1
+    PERLIN_OCTAVES: int = 4
+    PERLIN_PERSISTENCE: float = 0.5
+    PERLIN_LACUNARITY: float = 2.0
+
+    # Time calculation coefficients
+    UPHILL_PENALTY: float = 2.0
+    DOWNHILL_BENEFIT: float = 0.5
+
+    def __init__(
+        self,
+        config: ProblemConfig,
+        cities: Iterable[Tuple[float, float]],
+        perlin_seed: int = 42,
+        elevation_scale: float = 100.0,
+    ):
+        """
+        Initialize Multi-Objective TSP.
+
+        :param config: Problem configuration
+        :type config: ProblemConfig
+        :param cities: Iterable of (x, y) city coordinates
+        :type cities: Iterable[Tuple[float, float]]
+        :param perlin_seed: Seed for Perlin noise generation (reproducibility)
+        :type perlin_seed: int
+        :param elevation_scale: Scaling factor for elevation values
+        :type elevation_scale: float
+        """
+        super().__init__(config, n_objectives=2)
+
+        self.cities = np.asanyarray(cities, dtype=np.float64)
+        self.n_cities = self.cities.shape[0]
+        self.perlin_seed = perlin_seed
+        self.elevation_scale = elevation_scale
+
+        # Pre-compute matrices for efficient evaluation
+        self.dist_matrix = self._compute_distance_matrix()
+        self.time_matrix = self._compute_time_matrix()
+        self.minimize = True
+
+    def _compute_distance_matrix(self) -> np.ndarray:
+        """
+        Compute Euclidean distance matrix between all cities.
+
+        :return: Symmetric distance matrix of shape (n_cities, n_cities)
+        :rtype: np.ndarray
+        """
+        diff = self.cities[:, np.newaxis, :] - self.cities[np.newaxis, :, :]
+        return np.sqrt(np.sum(diff**2, axis=-1))
+
+    def _generate_elevations(self) -> np.ndarray:
+        """
+        Generate elevation values for each city using Perlin noise.
+
+        Perlin noise creates smooth, natural-looking terrain where nearby
+        cities have correlated but potentially different elevations.
+
+        :return: Array of elevation values for each city
+        :rtype: np.ndarray
+        """
+        try:
+            from noise import pnoise2
+        except ImportError:
+            raise ImportError(
+                "The 'noise' package is required for Perlin noise generation. "
+                "Install it with: pip install noise"
+            )
+
+        elevations = np.zeros(self.n_cities)
+
+        for i, (x, y) in enumerate(self.cities):
+            elevations[i] = pnoise2(
+                x * self.PERLIN_SCALE,
+                y * self.PERLIN_SCALE,
+                octaves=self.PERLIN_OCTAVES,
+                persistence=self.PERLIN_PERSISTENCE,
+                lacunarity=self.PERLIN_LACUNARITY,
+                base=self.perlin_seed,
+            )
+
+        # Normalize to [0, 1] range and scale
+        elevations = (elevations - elevations.min()) / (
+            elevations.max() - elevations.min() + 1e-10
+        )
+        return elevations * self.elevation_scale
+
+    def _compute_time_matrix(self) -> np.ndarray:
+        """
+        Compute travel time matrix between all cities.
+
+        Travel time considers:
+        - Base distance between cities
+        - Uphill penalty: traveling upward is slower (coefficient: UPHILL_PENALTY)
+        - Downhill benefit: traveling downward is slightly faster (coefficient: DOWNHILL_BENEFIT)
+
+        Note: The time matrix is NOT symmetric (going A->B may differ from B->A).
+
+        :return: Asymmetric time matrix of shape (n_cities, n_cities)
+        :rtype: np.ndarray
+        """
+        self.elevations = self._generate_elevations()
+        time_matrix = np.zeros((self.n_cities, self.n_cities))
+
+        for i in range(self.n_cities):
+            for j in range(self.n_cities):
+                if i == j:
+                    continue
+
+                distance = self.dist_matrix[i, j]
+                elevation_diff = self.elevations[j] - self.elevations[i]
+
+                # Uphill penalty (positive elevation difference)
+                uphill_effort = max(0.0, elevation_diff) * self.UPHILL_PENALTY
+
+                # Downhill benefit (negative elevation difference)
+                downhill_benefit = abs(min(0.0, elevation_diff)) * self.DOWNHILL_BENEFIT
+
+                time_matrix[i, j] = distance + uphill_effort - downhill_benefit
+
+        return time_matrix
+
+    def _compute_tour_distance(
+        self, solution: np.ndarray, closed: bool = True
+    ) -> float:
+        """
+        Compute total Euclidean distance of a tour.
+
+        :param solution: Ordered array of city indices defining the tour
+        :type solution: np.ndarray
+        :param closed: Whether to close the tour (return to start city)
+        :type closed: bool
+        :return: Total tour distance
+        :rtype: float
+        """
+        solution = np.asanyarray(solution, dtype=int)
+        from_cities = solution[:-1]
+        to_cities = solution[1:]
+
+        total = self.dist_matrix[from_cities, to_cities].sum()
+
+        if closed:
+            total += self.dist_matrix[solution[-1], solution[0]]
+
+        return float(total)
+
+    def _compute_tour_time(self, solution: np.ndarray, closed: bool = True) -> float:
+        """
+        Compute total travel time of a tour considering elevation changes.
+
+        :param solution: Ordered array of city indices defining the tour
+        :type solution: np.ndarray
+        :param closed: Whether to close the tour (return to start city)
+        :type closed: bool
+        :return: Total tour travel time
+        :rtype: float
+        """
+        solution = np.asanyarray(solution, dtype=int)
+        from_cities = solution[:-1]
+        to_cities = solution[1:]
+
+        total = self.time_matrix[from_cities, to_cities].sum()
+
+        if closed:
+            total += self.time_matrix[solution[-1], solution[0]]
+
+        return float(total)
+
+    def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
+        """
+        Evaluate both objectives for a given tour.
+
+        :param solution: Ordered array of city indices defining the tour
+        :type solution: Union[List, np.ndarray]
+        :return: Array with [total_distance, total_time]
+        :rtype: np.ndarray
+        """
+        solution = np.asanyarray(solution, dtype=int)
+
+        self._validate_solution(solution)
+
+        distance = self._compute_tour_distance(solution, closed=True)
+        time = self._compute_tour_time(solution, closed=True)
+
+        return np.array([distance, time])
+
+    def _validate_solution(self, solution: np.ndarray) -> None:
+        """
+        Validate that a solution is a valid tour.
+
+        :param solution: Solution to validate
+        :type solution: np.ndarray
+        :raises ValueError: If solution is invalid
+        """
+        if len(solution) != self.n_cities:
+            raise ValueError(
+                f"Solution must visit all {self.n_cities} cities exactly once. "
+                f"Got {len(solution)} cities."
+            )
+
+        if not np.all((0 <= solution) & (solution < self.n_cities)):
+            raise ValueError("Solution contains invalid city indices.")
+
+        if len(np.unique(solution)) != self.n_cities:
+            raise ValueError("Solution must visit each city exactly once.")
+
+    def get_bounds(self) -> Tuple[int, int]:
+        """
+        Get bounds for city indices.
+
+        Note: In permutation-based TSP, bounds represent valid city indices
+        rather than continuous variable bounds.
+
+        :return: (min_index, max_index) tuple
+        :rtype: Tuple[int, int]
+        """
+        return (0, self.n_cities - 1)
+
+    def plot_pareto_front(
+        self, show_true_front: bool = False, problem_name: str = ""
+    ) -> Scatter:
+        """
+        Plot the obtained Pareto front with distance vs time objectives.
+
+        :param show_true_front: Not applicable for MO-TSP (no analytical front)
+        :type show_true_front: bool
+        :param problem_name: Custom name for the plot title
+        :type problem_name: str
+        :return: Scatter plot object
+        :rtype: Scatter
+        """
+        if not np.any(self.pareto_front):
+            print("No Pareto front available yet.")
+            return None
+
+        pareto = np.asarray(self.pareto_front)
+        problem_name = problem_name if problem_name else "Multi-Objective TSP"
+
+        scatter = Scatter(
+            title=f"{problem_name} - Pareto Front",
+            labels=["Total Distance", "Total Time"],
+        )
+        scatter.add(pareto, color="blue", label="Obtained Front")
+
+        return scatter
