@@ -191,7 +191,7 @@ class OptunaOptimizer:
         Wrapper que gestiona cómo ejecutar el GA
         """
         if self.max_generations:
-            return genetic_algorithm.run_generations(self.max_generations)
+            return genetic_algorithm.run(int(self.max_generations))
         return genetic_algorithm.run()
 
     # ---------------- DataFrame / logging helpers ----------------
