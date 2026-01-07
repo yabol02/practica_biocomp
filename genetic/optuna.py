@@ -76,7 +76,7 @@ class OptunaOptimizer:
         :param problem_config: Configuracion del problema
         :type problem_config: ProblemConfig
         :param problem: Objeto que almacena la info relacionada con el problema
-        :type problem: TSProblemDistance
+        :type problem: TSProblem
         :param total_trials: Trials que se le da a optuna para que realice la optimizacion
         :type total_trials: int
         :param prune_frequency: Numero de trials ejecutados antes de una ronda de pruning
