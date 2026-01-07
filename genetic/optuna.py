@@ -22,7 +22,7 @@ from .factories import (
     replacement_factory,
 )
 from .selection import *
-from .algorithms import GeneticAlgorithmTSPTrace
+from .algorithms import GeneticAlgorithmSO
 from .configurations import ProblemConfig
 from .problems import TSProblem
 
@@ -337,7 +337,7 @@ class OptunaOptimizer:
             # del ag, el problema se modifica
             problem_copy = deepcopy(self.problem)
 
-            ga = GeneticAlgorithmTSPTrace(
+            ga = GeneticAlgorithmSO(
                 problem=problem_copy,
                 population_size=config["population_size"],
                 initialization=operators["initialization"],
