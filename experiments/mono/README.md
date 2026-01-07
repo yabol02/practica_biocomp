@@ -1,156 +1,373 @@
-# Mono-Objective Experiment Runner
+# Mono-Objective Experiment Runner - Enhanced Version
 
-This directory contains tools for running and managing mono-objective genetic algorithm experiments.
+This directory contains tools for running and managing mono-objective genetic algorithm experiments with complete history tracking and advanced analysis capabilities.
 
-## Overview
+## 📁 Directory Structure
 
-The experiment runner allows you to:
-- Execute genetic algorithm experiments across multiple configurations
-- Run multiple independent trials with different random seeds
-- Collect comprehensive metrics for analysis
-- Execute experiments in parallel using multithreading
-- Export results to CSV for further analysis
+```
+experiments/mono/results/
+├── histories/                    # Individual experiment histories
+│   ├── himmelblau_000_seed_000_history.csv
+│   ├── himmelblau_000_seed_001_history.csv
+│   └── ...
+├── summaries/                    # Per-config summaries
+│   ├── himmelblau_000_summary.csv
+│   ├── tsp_000_summary.csv
+│   └── ...
+├── metadata/                     # Configuration metadata
+│   └── configurations.json
+├── plots/                        # Generated visualizations
+│   ├── himmelblau_000_convergence_best_fitness.png
+│   ├── comparison_best_fitness.png
+│   └── ...
+├── summary_statistics.csv        # Overall statistics
+└── analysis_report.txt          # Text report
+```
 
-## Usage
+## 🔧 Usage
 
-### Basic Usage
+### Running Experiments
 
-To run all predefined experiments:
-
+**Basic usage:**
 ```bash
-cd /path/to/practica_biocomp
 python -m experiments.mono.experiment_runner
 ```
 
-### Custom Configurations
-
-You can create custom experiment configurations programmatically:
-
+**With multiprocessing (faster for CPU-bound experiments):**
 ```python
-from experiments.mono import ExperimentRunner, ExperimentConfig
-from genetic.initialization import RandomInitialization
-from genetic.selection import TournamentSelection
-from genetic.crossover import BlendCrossover
-from genetic.mutation import UniformMutation
-from genetic.replacement import ElitistReplacement
+from experiments.mono.experiment_runner import ExperimentRunner
 
-# Create custom configuration
-config = ExperimentConfig(
-    config_id="custom_001",
-    problem_type="Himmelblau",
-    problem_params={},
-    initialization=RandomInitialization(),
-    selection=TournamentSelection(tournament_size=3),
-    crossover=BlendCrossover(alpha=0.5),
-    mutation=UniformMutation(mutation_rate=0.1, bounds=[(-5.0, 5.0), (-5.0, 5.0)]),
-    replacement=ElitistReplacement(elite_size=2),
-    population_size=50,
-    max_evaluations=5000,
+runner = ExperimentRunner(
+    output_dir="experiments/mono/results",
+    max_workers=8,
+    use_processes=True  # Enable multiprocessing
 )
-
-# Run experiments
-runner = ExperimentRunner(output_dir="my_results", max_workers=4)
-results = runner.run_experiments([config], seeds=list(range(10)))
-runner.save_results_csv(config, results[config.config_id])
 ```
 
-## Experiment Configuration
+### Analyzing Results
 
-Each experiment configuration includes:
+**Run complete analysis:**
+```bash
+python -m experiments.mono.analyze_experiments
+```
 
-- **config_id**: Unique identifier for the configuration
-- **problem_type**: Problem to optimize ("Himmelblau" or "TSP")
-- **problem_params**: Problem-specific parameters (e.g., cities for TSP)
-- **initialization**: Population initialization strategy
-- **selection**: Parent selection operator
-- **crossover**: Crossover operator
-- **mutation**: Mutation operator
-- **replacement**: Replacement/survival strategy
-- **population_size**: Number of individuals in the population
-- **max_evaluations**: Maximum number of fitness evaluations
-
-## Supported Problems
-
-### Himmelblau Function
-
-A continuous optimization problem with multiple local minima:
-- Bounds: x, y ∈ [-5, 5]
-- Global minima: f(x,y) = 0 at four locations
-
-### Traveling Salesman Problem (TSP)
-
-A combinatorial optimization problem:
-- Objective: Minimize tour distance visiting all cities
-- Representation: Permutation of city indices
-
-## Output Files
-
-The experiment runner generates the following outputs:
-
-### Individual Configuration Results
-
-One CSV file per configuration (`{config_id}.csv`) containing:
-- `config_id`: Configuration identifier
-- `seed`: Random seed used
-- `best_fitness`: Best fitness value achieved
-- `evals_to_best`: Number of evaluations to reach best fitness
-- `execution_time`: Total execution time in seconds
-- `total_evaluations`: Total number of evaluations performed
-- `final_generation`: Final generation number
-- `convergence_rate`: Rate of convergence (evals_to_best / total_evaluations)
-- Configuration parameters (initialization, selection, etc.)
-
-### Summary Statistics
-
-`summary_statistics.csv` containing aggregate statistics across all seeds:
-- Mean, standard deviation, min, and max for all metrics
-- Useful for comparing configurations
-
-## Metrics
-
-For each experiment run, the following metrics are computed:
-
-1. **Best Fitness**: The best fitness value found during the run
-2. **Evaluations to Best**: Number of evaluations required to find the best solution
-3. **Execution Time**: Wall-clock time for the entire run
-4. **Total Evaluations**: Total number of fitness evaluations performed
-5. **Convergence Rate**: Ratio of evals_to_best to total_evaluations (lower is better)
-
-## Parallelism
-
-The experiment runner uses Python's `ThreadPoolExecutor` for parallel execution:
-- Each thread runs one complete experiment (one configuration + one seed)
-- Number of workers is configurable (default: 4)
-- Experiments are executed asynchronously and results are collected as they complete
-
-## Logging
-
-The runner provides comprehensive logging:
-- Experiment start and completion notifications
-- Progress updates
-- Error reporting
-- Summary statistics
-
-Logging can be configured via the `log_level` parameter:
+**Custom analysis in Python:**
 ```python
-runner = ExperimentRunner(log_level=logging.DEBUG)  # More verbose
-runner = ExperimentRunner(log_level=logging.WARNING)  # Less verbose
+from experiments.mono.analyze_experiments import ExperimentAnalyzer
+
+analyzer = ExperimentAnalyzer("experiments/mono/results")
+
+# Plot convergence for a specific configuration
+analyzer.plot_convergence("himmelblau_000", show_all_seeds=True)
+
+# Compare multiple configurations
+analyzer.plot_multiple_configs_convergence([
+    "himmelblau_000",
+    "himmelblau_001"
+])
+
+# Generate comparison table
+table = analyzer.generate_comparison_table(top_n=10)
+print(table)
+
+# Create comprehensive report
+analyzer.generate_report(output_file="my_report.txt")
 ```
 
-## Example Output
+## 📊 Output Files
 
-Sample CSV output for a configuration:
+### History Files
 
+Each experiment run produces a CSV file: `{config_id}_seed_{seed:03d}_history.csv`
+
+**Format:**
 ```csv
-config_id,seed,best_fitness,evals_to_best,execution_time,total_evaluations,final_generation,convergence_rate,problem_type,initialization,selection,crossover,mutation,replacement,population_size,max_evaluations
-himmelblau_001,0,0.0234,1543,2.45,5000,100,0.3086,Himmelblau,RandomInitialization,TournamentSelection,BlendCrossover,UniformMutation,ElitistReplacement,50,5000
-himmelblau_001,1,0.0198,1678,2.52,5000,100,0.3356,Himmelblau,RandomInitialization,TournamentSelection,BlendCrossover,UniformMutation,ElitistReplacement,50,5000
+generation,best_fitness,mean_fitness,std_fitness,worst_fitness
+0,15.234,25.123,5.234,45.123
+1,12.456,22.345,4.567,42.345
 ...
 ```
 
-## Notes
+**Columns:**
+- `generation`: Generation number
+- `best_fitness`: Best fitness in the population
+- `mean_fitness`: Mean fitness across population
+- `std_fitness`: Standard deviation of fitness
+- `worst_fitness`: Worst fitness in the population
 
-- The GA's internal logging is suppressed during experiments (print_interval=999999)
-- Experiments log start and completion events for tracking
-- All results are saved to CSV for easy analysis with pandas, R, or other tools
-- Random seeds ensure reproducibility across runs
+### Summary Files
+
+Per-configuration summary: `{config_id}_summary.csv`
+
+**Contains:**
+- Results from all seeds for the configuration
+- Best fitness, evaluations to best, execution time
+- Configuration parameters
+
+### Summary Statistics
+
+Overall summary: `summary_statistics.csv`
+
+**Aggregated metrics across all seeds:**
+- Mean, std, min, max of best fitness
+- Mean evaluations to best solution
+- Mean execution time
+- Convergence rate statistics
+
+### Configuration Metadata
+
+JSON file with complete configuration details: `configurations.json`
+
+**Includes:**
+- All operator parameters
+- Problem configuration
+- Population size and evaluation budget
+
+## 📈 Analysis Features
+
+### 1. Convergence Plots
+
+Visualize how fitness improves over generations:
+
+```python
+analyzer.plot_convergence(
+    config_id="himmelblau_000",
+    metric="best_fitness",
+    show_all_seeds=True  # Show individual runs + mean±std
+)
+```
+
+**Metrics available:**
+- `best_fitness`: Best individual in population
+- `mean_fitness`: Population average
+- `std_fitness`: Population diversity
+- `worst_fitness`: Worst individual
+
+### 2. Configuration Comparison
+
+Compare multiple configurations on the same plot:
+
+```python
+analyzer.plot_multiple_configs_convergence(
+    config_ids=["himmelblau_000", "himmelblau_001", "tsp_000"],
+    metric="best_fitness"
+)
+```
+
+### 3. Summary Statistics
+
+Visualize performance across all configurations:
+
+```python
+analyzer.plot_summary_statistics(
+    metric="best_fitness_mean",
+    problem_type="himmelblau"  # Filter by problem
+)
+```
+
+### 4. Fitness Distribution
+
+Box plots showing fitness distribution across seeds:
+
+```python
+analyzer.plot_fitness_distribution(
+    config_ids=["himmelblau_000", "himmelblau_001"]
+)
+```
+
+### 5. Convergence Speed Analysis
+
+Analyze trade-off between speed and quality:
+
+```python
+analyzer.analyze_convergence_speed(
+    config_ids=["himmelblau_000", "himmelblau_001"]
+)
+```
+
+### 6. Comparison Tables
+
+Generate ranked tables of configurations:
+
+```python
+table = analyzer.generate_comparison_table(
+    metrics=[
+        "best_fitness_mean",
+        "best_fitness_std",
+        "evals_to_best_mean",
+        "execution_time_mean"
+    ],
+    problem_type="himmelblau",
+    top_n=10
+)
+```
+
+### 7. Comprehensive Reports
+
+Generate detailed text reports:
+
+```python
+analyzer.generate_report(
+    output_file="experiments/mono/results/report.txt"
+)
+```
+
+## 🎯 Example Workflow
+
+```python
+# 1. Run experiments
+from experiments.mono.experiment_runner import (
+    ExperimentRunner,
+    create_himmelblau_configs,
+    create_tsp_configs
+)
+
+runner = ExperimentRunner(
+    output_dir="my_experiments",
+    max_workers=4,
+    use_processes=False  # True for CPU-intensive tasks
+)
+
+configs = create_himmelblau_configs() + create_tsp_configs()
+seeds = list(range(10))
+
+results = runner.run_experiments(configs, seeds)
+
+# Save summaries
+for config in configs:
+    runner.save_results_summary(config, results[config.config_id])
+runner.save_summary_statistics(results)
+
+# 2. Analyze results
+from experiments.mono.analyze_experiments import ExperimentAnalyzer
+
+analyzer = ExperimentAnalyzer("my_experiments")
+
+# Get best configuration
+table = analyzer.generate_comparison_table(top_n=5)
+best_config = table.iloc[0]["config_id"]
+
+# Plot its convergence
+analyzer.plot_convergence(best_config, show_all_seeds=True)
+
+# Compare top 3 configurations
+top_3 = table.head(3)["config_id"].tolist()
+analyzer.plot_multiple_configs_convergence(top_3)
+
+# Generate comprehensive report
+analyzer.generate_report(output_file="analysis.txt")
+```
+
+## ⚡ Performance Tips
+
+### When to Use Multiprocessing
+
+**Use `use_processes=True` when:**
+- Experiments are CPU-intensive (complex fitness functions)
+- You have multiple CPU cores available
+- Running many long experiments
+
+**Use `use_processes=False` when:**
+- Experiments are I/O bound
+- Debugging (easier stack traces)
+- Objects are not easily picklable
+
+### Optimizing Experiments
+
+1. **Batch processing**: Group similar configurations
+2. **Incremental analysis**: Analyze results as they complete
+3. **Parallel workers**: Match to CPU core count
+4. **Memory management**: Process large result sets in chunks
+
+```python
+# Example: Process results incrementally
+runner = ExperimentRunner(max_workers=8)
+
+for batch in config_batches:
+    results = runner.run_experiments(batch, seeds)
+    
+    # Analyze immediately
+    analyzer = ExperimentAnalyzer(runner.output_dir)
+    analyzer.generate_comparison_table()
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Problem:** Multiprocessing hangs or fails  
+**Solution:** Set `use_processes=False` or ensure all objects are picklable
+
+**Problem:** Memory errors with large experiments  
+**Solution:** Reduce `max_workers` or process in smaller batches
+
+**Problem:** Plots not showing  
+**Solution:** Use `plt.show()` or save with `save=True`
+
+**Problem:** Missing history files  
+**Solution:** Check that experiments completed successfully (check logs)
+
+## 📝 Notes
+
+- All plots are saved at 300 DPI for publication quality
+- History files use minimal storage (only numeric data)
+- Metadata is JSON for easy parsing by other tools
+- CSV format is compatible with R, Excel, pandas, etc.
+
+## 🔬 Advanced Usage
+
+### Custom Metrics
+
+Add custom metrics to analysis:
+
+```python
+# Load history
+df = analyzer.load_experiment_history("himmelblau_000", seed=0)
+
+# Calculate custom metric
+df["improvement_rate"] = df["best_fitness"].diff().abs()
+
+# Plot
+plt.plot(df["generation"], df["improvement_rate"])
+plt.xlabel("Generation")
+plt.ylabel("Improvement Rate")
+plt.show()
+```
+
+### Batch Analysis
+
+Analyze multiple result directories:
+
+```python
+import pandas as pd
+
+results = []
+for exp_dir in ["exp1", "exp2", "exp3"]:
+    analyzer = ExperimentAnalyzer(exp_dir)
+    stats = analyzer.summary_stats
+    stats["experiment"] = exp_dir
+    results.append(stats)
+
+combined = pd.concat(results)
+# Now analyze combined results
+```
+
+### Export for Papers
+
+```python
+# Generate all plots for publication
+analyzer = ExperimentAnalyzer("experiments/mono/results")
+
+configs = [c["config_id"] for c in analyzer.configs]
+
+# High-quality plots
+for config in configs:
+    analyzer.plot_convergence(config, save=True)
+
+analyzer.plot_multiple_configs_convergence(configs, save=True)
+analyzer.plot_summary_statistics(save=True)
+
+# LaTeX-ready table
+table = analyzer.generate_comparison_table(top_n=10)
+print(table.to_latex(index=False))
+```
