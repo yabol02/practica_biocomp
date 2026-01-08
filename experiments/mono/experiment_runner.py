@@ -366,6 +366,8 @@ class ExperimentRunner:
             config.config_id: [] for config in configs
         }
 
+        config_map = {c.config_id: c for c in configs}
+
         total_experiments = len(configs) * len(seeds)
         self.logger.info(
             f"Starting {total_experiments} experiments "
@@ -392,7 +394,9 @@ class ExperimentRunner:
                     for config_dict, seed in tasks
                 }
 
-                self._collect_results(future_to_task, all_results, total_experiments)
+                self._collect_results(
+                    future_to_task, all_results, total_experiments, config_map
+                )
         else:
             # Use threads (original behavior, simpler for debugging)
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -405,7 +409,9 @@ class ExperimentRunner:
                     for seed in seeds
                 }
 
-                self._collect_results(future_to_task, all_results, total_experiments)
+                self._collect_results(
+                    future_to_task, all_results, total_experiments, config_map
+                )
 
         return all_results
 
@@ -469,7 +475,9 @@ class ExperimentRunner:
 
         return experiment_result
 
-    def _collect_results(self, future_to_task, all_results, total_experiments):
+    def _collect_results(
+        self, future_to_task, all_results, total_experiments, config_map=None
+    ):
         """Collect results as they complete."""
         completed = 0
         for future in as_completed(future_to_task):
@@ -487,6 +495,15 @@ class ExperimentRunner:
 
                 # Save history immediately after each experiment
                 self._save_experiment_history(result)
+
+                # Save summary for this config after each seed
+                if config_map and config_id in config_map:
+                    self.save_results_summary(
+                        config_map[config_id], all_results[config_id]
+                    )
+
+                # Update summary statistics after each experiment
+                self.save_summary_statistics(all_results)
 
                 completed += 1
                 self.logger.info(f"Progress: {completed}/{total_experiments} completed")
