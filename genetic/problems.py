@@ -2,10 +2,16 @@ from abc import ABC, abstractmethod
 from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.operators.crossover.ox import OrderCrossover
+from pymoo.operators.mutation.inversion import InversionMutation
+from pymoo.operators.sampling.rnd import PermutationRandomSampling
+from pymoo.optimize import minimize as pymoo_minimize
 from pymoo.problems import get_problem
 from pymoo.visualization.scatter import Scatter
 from pyswarms.single import GlobalBestPSO
-from scipy.optimize import minimize
+from scipy.optimize import minimize as scipy_minimize
 
 from aco import AntColony
 
@@ -86,10 +92,12 @@ class Problem(ABC):
 class SingleObjectiveProblem(Problem):
     """Base class for single-objective problems."""
 
-    def __init__(self, config: ProblemConfig, minimize: bool = True):
-        super().__init__(config)
-        self.minimize = minimize
-        self.best_fitness: float = float("inf") if minimize else float("-inf")
+    def __init__(self, config: ProblemConfig, **kwargs):
+        super().__init__(config, **kwargs)
+        self.minimize = kwargs.get("minimize", True)
+        self.n_var: int = 1
+        self.best_fitness: float = float("inf") if self.minimize else float("-inf")
+        self.best_sol_found_on: int = -1
         self.best_solution: Optional[Individual] = None
         self.mean_history: List = []
         self.std_history: List = []
@@ -111,6 +119,7 @@ class SingleObjectiveProblem(Problem):
         if self._is_better(fitness, self.best_fitness):
             self.best_fitness = fitness
             self.best_solution = solution.copy()
+            self.best_sol_found_on = self.evaluations_count
 
         return fitness
 
@@ -166,6 +175,7 @@ class SingleObjectiveProblem(Problem):
             problem_name=self.__class__.__name__,
             best_fitness=self.best_fitness,
             best_solution=self.best_solution,
+            best_solution_found_on=self.best_sol_found_on,
             evaluations_used=self.evaluations_count,
             history=self.history,
         )
@@ -208,7 +218,15 @@ class MultiObjectiveProblem(Problem):
         self.all_objectives: List[np.ndarray] = []
         self.all_solutions: List[np.ndarray] = []
 
-    def evaluate(self, solution: List) -> List[float]:
+    def reset(self):
+        super().reset()
+        self.pareto_front = np.empty((0, self.n_objectives))
+        self.pareto_solutions = np.empty((0, 0))
+        self.pareto_history = []
+        self.all_objectives = []
+        self.all_solutions = []
+
+    def evaluate(self, solution: List, **kwargs) -> List[float]:
         """
         Evaluate solution (multi-objective).
 
@@ -367,6 +385,24 @@ class MultiObjectiveProblem(Problem):
             metrics=metrics,
         )
 
+    @abstractmethod
+    def get_nsga2_result(
+        self, pop_size: int = 100, seed: Optional[int] = None, verbose: bool = False
+    ) -> MultiObjectiveResult:
+        """
+        Optimize using NSGA-II algorithm from pymoo. TO BE IMPLEMENTED IN SUBCLASSES.
+
+        :param pop_size: Population size
+        :type pop_size: int
+        :param seed: Random seed for reproducibility
+        :type seed: Optional[int]
+        :param verbose: Whether to print progress
+        :type verbose: bool
+        :return: Multi-objective optimization result
+        :rtype: MultiObjectiveResult
+        """
+        raise NotImplementedError()
+
     def plot_pareto_front(
         self, show_true_front: bool = False, problem_name: str = ""
     ) -> Scatter:
@@ -405,8 +441,8 @@ class MultiObjectiveProblem(Problem):
 class HimmelblauProblem(SingleObjectiveProblem):
     """Himmelblau function optimization problem."""
 
-    def __init__(self, config: ProblemConfig, minimize: bool = True):
-        super().__init__(config, minimize)
+    def __init__(self, config: ProblemConfig, **kwargs):
+        super().__init__(config, **kwargs)
         self.bounds = [(-5.0, 5.0), (-5.0, 5.0)]
 
     def _fitness_function(self, solution: List) -> float:
@@ -467,13 +503,15 @@ class HimmelblauProblem(SingleObjectiveProblem):
 
         cost, pos = optimizer.optimize(self._fitness_function, iters=3500, verbose=pbar)
 
-        return SingleObjectiveResult(
+        self.result_pyswarms = SingleObjectiveResult(
             problem_name="PySwarms" + self.__class__.__name__,
             best_fitness=cost,
             best_solution=pos,
             evaluations_used=len(optimizer.cost_history),
             history=optimizer.cost_history,
         )
+
+        return self.result_pyswarms
 
     def get_scipy_result(
         self,
@@ -509,7 +547,7 @@ class HimmelblauProblem(SingleObjectiveProblem):
 
         scipy_bounds = [(b[0], b[1]) for b in self.bounds]
 
-        result = minimize(
+        result = scipy_minimize(
             tracked_fitness,
             x0=x0,
             method=method,
@@ -517,13 +555,15 @@ class HimmelblauProblem(SingleObjectiveProblem):
             tol=tol,
         )
 
-        return SingleObjectiveResult(
+        self.result_scipy = SingleObjectiveResult(
             problem_name=f"Scipy_{method}_{self.__class__.__name__}",
             best_fitness=result.fun,
             best_solution=result.x.tolist(),
             evaluations_used=eval_count,
             history=history,
         )
+
+        return self.result_scipy
 
 
 class TSProblem(SingleObjectiveProblem):
@@ -533,9 +573,9 @@ class TSProblem(SingleObjectiveProblem):
         self,
         config: ProblemConfig,
         cities: Iterable[Tuple[float, float]],
-        minimize: bool = True,
+        **kwargs,
     ):
-        super().__init__(config, minimize)
+        super().__init__(config, **kwargs)
         self.cities = np.asanyarray(cities, dtype=np.float64)
         self.n_cities = self.cities.shape[0]
         self.dist_matrix = self._compute_distance_matrix()
@@ -591,22 +631,23 @@ class TSProblem(SingleObjectiveProblem):
         self, solution: np.ndarray, closed_path: bool = True
     ) -> float:
         """
-        Fitness function for TSP: inverse of path length.
+        Fitness function for TSP: path length.
 
         :param solution: Ordered list of city indices defining the path.
         :type solution: np.ndarray
         :param closed_path: Whether the path is closed (cycle) or open.
         :type closed_path: bool
-        :return: Fitness value (inverse of path length).
+        :return: Fitness value (path length).
         :rtype: float
         """
-        # TODO: We are considering only closed paths for now, rewrite super().evaluate to pass this parameter
-        return 1 / (1 + self._sol_distance(solution, closed=closed_path))
+        return self._sol_distance(solution, closed=closed_path)
 
-    def get_aco_results(self, ant_count=50, iterations=20, **kwargs) -> SingleObjectiveResult:
+    def get_aco_result(
+        self, ant_count=50, iterations=20, **kwargs
+    ) -> SingleObjectiveResult:
         """
         Perform optimization using Ant Colony Optimization.
-        
+
         :param ant_count: Number of ants in the colony
         :type ant_count: int
         :param iterations: Number of iterations to run the algorithm
@@ -638,13 +679,15 @@ class TSProblem(SingleObjectiveProblem):
 
         optimal_path = colony.get_path()
 
-        return SingleObjectiveResult(
+        self.result_aco = SingleObjectiveResult(
             problem_name="ACO_" + self.__class__.__name__,
             best_fitness=self._fitness_function(optimal_path),
             best_solution=optimal_path,
             evaluations_used=colony.evaluation_counts,
             history=colony.history,
         )
+
+        return self.result_aco
 
 
 class PymooProblem(MultiObjectiveProblem):
@@ -669,13 +712,13 @@ class PymooProblem(MultiObjectiveProblem):
 
         self.pymoo_problem = get_problem(problem_name.lower(), **problem_kwargs)
 
-        super().__init__(config, n_objectives=self.pymoo_problem.n_obj)
-
         self.problem_name = problem_name.upper()
         self.n_var = self.pymoo_problem.n_var
         self.lower_bound = self.pymoo_problem.xl
         self.upper_bound = self.pymoo_problem.xu
         self.minimize = True
+
+        super().__init__(config, n_objectives=self.pymoo_problem.n_obj)
 
     def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
         """
@@ -717,6 +760,60 @@ class PymooProblem(MultiObjectiveProblem):
         :rtype: Optional[np.ndarray]
         """
         return self.pymoo_problem.pareto_front()
+
+    def get_nsga2_result(
+        self, pop_size: int = 100, seed: Optional[int] = None, verbose: bool = False
+    ) -> MultiObjectiveResult:
+        """
+        Optimize using NSGA-II algorithm from pymoo.
+
+        :param pop_size: Population size
+        :type pop_size: int
+        :param seed: Random seed for reproducibility
+        :type seed: Optional[int]
+        :param verbose: Whether to print progress
+        :type verbose: bool
+        :return: Multi-objective optimization result
+        :rtype: MultiObjectiveResult
+        """
+        self.reset()
+
+        algorithm = NSGA2(pop_size=pop_size)
+        n_gen = self.config.max_evaluations // pop_size
+        res = pymoo_minimize(
+            problem=self.pymoo_problem,
+            algorithm=algorithm,
+            termination=("n_gen", n_gen),
+            verbose=verbose,
+            seed=seed,
+        )
+
+        if res.F is not None and res.X is not None:
+            self.pareto_solutions = res.X
+            self.pareto_front = res.F
+            self.pareto_history.append((res.F.copy(), self.pareto_solutions.copy()))
+
+        metrics = {
+            "n_pareto_solutions": len(self.pareto_front),
+            "pareto_spread": (
+                np.mean(np.var(self.pareto_front, axis=0))
+                if np.any(self.pareto_front)
+                else None
+            ),
+            "history_length": len(self.pareto_history),
+            "algorithm": "NSGA-II",
+            "pop_size": pop_size,
+            "n_gen": n_gen,
+        }
+
+        return MultiObjectiveResult(
+            problem_name=self.__class__.__name__,
+            best_fitness=self.pareto_front,
+            best_solution=self.pareto_solutions,
+            evaluations_used=self.evaluations_count,
+            pareto_front=self.pareto_front,
+            metrics=metrics,
+        )
 
 
 class MOTSProblem(MultiObjectiveProblem):
@@ -764,10 +861,13 @@ class MOTSProblem(MultiObjectiveProblem):
         :param elevation_scale: Scaling factor for elevation values
         :type elevation_scale: float
         """
-        super().__init__(config, n_objectives=2)
-
         self.cities = np.asanyarray(cities, dtype=np.float64)
         self.n_cities = self.cities.shape[0]
+
+        self.n_var = self.n_cities
+
+        super().__init__(config, n_objectives=2)
+
         self.perlin_seed = perlin_seed
         self.elevation_scale = elevation_scale
 
@@ -857,55 +957,53 @@ class MOTSProblem(MultiObjectiveProblem):
 
         return time_matrix
 
-    def _compute_tour_distance(
-        self, solution: np.ndarray, closed: bool = True
-    ) -> float:
+    def _compute_tour_distance(self, tour: np.ndarray, closed: bool = True) -> float:
         """
         Compute total Euclidean distance of a tour.
 
-        :param solution: Ordered array of city indices defining the tour
-        :type solution: np.ndarray
+        :param tour: Ordered array of city indices defining the tour
+        :type tour: np.ndarray
         :param closed: Whether to close the tour (return to start city)
         :type closed: bool
         :return: Total tour distance
         :rtype: float
         """
-        solution = np.asanyarray(solution, dtype=int)
-        from_cities = solution[:-1]
-        to_cities = solution[1:]
+        tour = np.asanyarray(tour, dtype=int)
+        from_cities = tour[:-1]
+        to_cities = tour[1:]
 
         total = self.dist_matrix[from_cities, to_cities].sum()
 
         if closed:
-            total += self.dist_matrix[solution[-1], solution[0]]
+            total += self.dist_matrix[tour[-1], tour[0]]
 
         return float(total)
 
-    def _compute_tour_time(self, solution: np.ndarray, closed: bool = True) -> float:
+    def _compute_tour_time(self, tour: np.ndarray, closed: bool = True) -> float:
         """
         Compute total travel time of a tour considering elevation changes.
 
-        :param solution: Ordered array of city indices defining the tour
-        :type solution: np.ndarray
+        :param tour: Ordered array of city indices defining the tour
+        :type tour: np.ndarray
         :param closed: Whether to close the tour (return to start city)
         :type closed: bool
         :return: Total tour travel time
         :rtype: float
         """
-        solution = np.asanyarray(solution, dtype=int)
-        from_cities = solution[:-1]
-        to_cities = solution[1:]
+        tour = np.asanyarray(tour, dtype=int)
+        from_cities = tour[:-1]
+        to_cities = tour[1:]
 
         total = self.time_matrix[from_cities, to_cities].sum()
 
         if closed:
-            total += self.time_matrix[solution[-1], solution[0]]
+            total += self.time_matrix[tour[-1], tour[0]]
 
         return float(total)
 
     def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
         """
-        Evaluate both objectives for a given tour.
+        Evaluate both objectives for a given solution.
 
         :param solution: Ordered array of city indices defining the tour
         :type solution: Union[List, np.ndarray]
@@ -953,6 +1051,32 @@ class MOTSProblem(MultiObjectiveProblem):
         """
         return (0, self.n_cities - 1)
 
+    def get_nsga2_result(self, pop_size=100, seed=None, verbose=False):
+        self.reset()
+
+        pymoo_problem = PymooMOTSPWrapper(self)
+
+        algorithm = NSGA2(
+            pop_size=pop_size,
+            sampling=PermutationRandomSampling(),
+            crossover=OrderCrossover(prob=0.9),
+            mutation=InversionMutation(prob=0.2),
+            eliminate_duplicates=True,
+        )
+
+        res = pymoo_minimize(
+            pymoo_problem,
+            algorithm,
+            termination=("n_gen", self.config.max_generations),
+            seed=seed,
+            verbose=verbose,
+        )
+
+        # Actualiza Pareto usando resultados de Pymoo
+        self.update_pareto_front(new_objectives=res.F, new_solutions=res.X)
+
+        return self.get_result()
+
     def plot_pareto_front(
         self, show_true_front: bool = False, problem_name: str = ""
     ) -> Scatter:
@@ -980,3 +1104,17 @@ class MOTSProblem(MultiObjectiveProblem):
         scatter.add(pareto, color="blue", label="Obtained Front")
 
         return scatter
+
+
+class PymooMOTSPWrapper(ElementwiseProblem):
+    """Wrapper to use MOTSProblem with pymoo."""
+
+    def __init__(self, mots_problem: MOTSProblem):
+        self.problem = mots_problem
+        n = mots_problem.n_cities
+
+        super().__init__(n_var=n, n_obj=2, n_constr=0, xl=0, xu=n - 1, type_var=int)
+
+    def _evaluate(self, x, out, *args, **kwargs):
+        objectives = self.problem.evaluate(x)
+        out["F"] = objectives
