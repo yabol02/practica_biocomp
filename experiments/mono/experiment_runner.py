@@ -21,11 +21,15 @@ import numpy as np
 
 from genetic.algorithms import GeneticAlgorithmSO
 from genetic.configurations import ProblemConfig
-from genetic.crossover import BlendCrossover, Crossover, OrderCrossover
-from genetic.initialization import (Initialization, NeighborInitialization,
+from genetic.crossover import (BlendCrossover, Crossover, CycleCrossover,
+                               EdgeRecombinationCrossover, OrderCrossover,
+                               PMXCrossover)
+from genetic.initialization import (DiverseNNInitialization, Initialization,
+                                    NeighborInitialization,
                                     PermutationInitialization,
                                     RandomInitialization)
-from genetic.mutation import Mutation, SwapMutation, UniformMutation
+from genetic.mutation import (InversionMutation, Mutation, ScrambleMutation,
+                              SwapMutation, UniformMutation)
 from genetic.problems import HimmelblauProblem, TSProblem
 from genetic.replacement import (ElitistReplacement, GenerationalReplacement,
                                  MuPlusLambdaReplacement, Replacement)
@@ -133,7 +137,7 @@ CITIES_TSP = (
     (0.2276570035864689, 0.6515924491551327),
     (0.836939257954547, 0.0499933914625984),
 )
-    
+
 
 @dataclass
 class ExperimentConfig:
@@ -208,43 +212,43 @@ def _run_single_experiment_worker(
     config_id = config_dict["config_id"]
     problem_type = config_dict["problem_type"]
     problem_params = config_dict["problem_params"]
-    
+
     # Recreate operators
     init_class = config_dict["initialization"]["class"]
     init_params = config_dict["initialization"]["params"]
     initialization = globals()[init_class](**init_params)
-    
+
     sel_class = config_dict["selection"]["class"]
     sel_params = config_dict["selection"]["params"]
     selection = globals()[sel_class](**sel_params)
-    
+
     cx_class = config_dict["crossover"]["class"]
     cx_params = config_dict["crossover"]["params"]
     crossover = globals()[cx_class](**cx_params)
-    
+
     mut_class = config_dict["mutation"]["class"]
     mut_params = config_dict["mutation"]["params"]
     mutation = globals()[mut_class](**mut_params)
-    
+
     rep_class = config_dict["replacement"]["class"]
     rep_params = config_dict["replacement"]["params"]
     replacement = globals()[rep_class](**rep_params)
-    
+
     population_size = config_dict["population_size"]
     max_evaluations = config_dict["max_evaluations"]
-    
+
     # Run experiment
     start_time = time.time()
-    
+
     problem_config = ProblemConfig(max_evaluations=max_evaluations, seed=seed)
-    
+
     if problem_type == "Himmelblau":
         problem = HimmelblauProblem(problem_config)
     elif problem_type == "TSP":
         problem = TSProblem(problem_config, **problem_params)
     else:
         raise ValueError(f"Unknown problem type: {problem_type}")
-    
+
     ga = GeneticAlgorithmSO(
         problem=problem,
         population_size=population_size,
@@ -255,16 +259,16 @@ def _run_single_experiment_worker(
         replacement=replacement,
         print_interval=999999,
     )
-    
+
     result = ga.run()
     execution_time = time.time() - start_time
-    
+
     convergence_rate = (
         result.best_solution_found_on / result.evaluations_used
         if result.evaluations_used > 0 and result.best_solution_found_on >= 0
         else 0.0
     )
-    
+
     experiment_result = ExperimentResult(
         config_id=config_id,
         seed=seed,
@@ -279,7 +283,7 @@ def _run_single_experiment_worker(
         std_history=problem.std_history,
         worst_history=problem.worst_history,
     )
-    
+
     return config_id, seed, experiment_result
 
 
@@ -303,17 +307,17 @@ class ExperimentRunner:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create subdirectories
         self.history_dir = self.output_dir / "histories"
         self.history_dir.mkdir(exist_ok=True)
-        
+
         self.summary_dir = self.output_dir / "summaries"
         self.summary_dir.mkdir(exist_ok=True)
-        
+
         self.metadata_dir = self.output_dir / "metadata"
         self.metadata_dir.mkdir(exist_ok=True)
-        
+
         self.max_workers = max_workers
         self.use_processes = use_processes
 
@@ -378,7 +382,7 @@ class ExperimentRunner:
                 for config in configs
                 for seed in seeds
             ]
-            
+
             with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
                 future_to_task = {
                     executor.submit(_run_single_experiment_worker, config_dict, seed): (
@@ -387,10 +391,10 @@ class ExperimentRunner:
                     )
                     for config_dict, seed in tasks
                 }
-                
+
                 self._collect_results(future_to_task, all_results, total_experiments)
         else:
-            # Use threads (original behavior, simpler for debugging)            
+            # Use threads (original behavior, simpler for debugging)
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 future_to_task = {
                     executor.submit(self._run_single_experiment, config, seed): (
@@ -400,7 +404,7 @@ class ExperimentRunner:
                     for config in configs
                     for seed in seeds
                 }
-                
+
                 self._collect_results(future_to_task, all_results, total_experiments)
 
         return all_results
@@ -410,17 +414,19 @@ class ExperimentRunner:
     ) -> ExperimentResult:
         """Execute a single experiment (for ThreadPoolExecutor)."""
         self.logger.info(f"Starting: config_id={config.config_id}, seed={seed}")
-        
+
         start_time = time.time()
-        problem_config = ProblemConfig(max_evaluations=config.max_evaluations, seed=seed)
-        
+        problem_config = ProblemConfig(
+            max_evaluations=config.max_evaluations, seed=seed
+        )
+
         if config.problem_type == "Himmelblau":
             problem = HimmelblauProblem(problem_config)
         elif config.problem_type == "TSP":
             problem = TSProblem(problem_config, **config.problem_params)
         else:
             raise ValueError(f"Unknown problem type: {config.problem_type}")
-        
+
         ga = GeneticAlgorithmSO(
             problem=problem,
             population_size=config.population_size,
@@ -431,16 +437,16 @@ class ExperimentRunner:
             replacement=config.replacement,
             print_interval=999999,
         )
-        
+
         result = ga.run()
         execution_time = time.time() - start_time
-        
+
         convergence_rate = (
             result.best_solution_found_on / result.evaluations_used
             if result.evaluations_used > 0 and result.best_solution_found_on >= 0
             else 0.0
         )
-        
+
         experiment_result = ExperimentResult(
             config_id=config.config_id,
             seed=seed,
@@ -455,12 +461,12 @@ class ExperimentRunner:
             std_history=problem.std_history,
             worst_history=problem.worst_history,
         )
-        
+
         self.logger.info(
             f"Completed: config_id={config.config_id}, seed={seed}, "
             f"best={result.best_fitness:.6f}, time={execution_time:.2f}s"
         )
-        
+
         return experiment_result
 
     def _collect_results(self, future_to_task, all_results, total_experiments):
@@ -468,7 +474,7 @@ class ExperimentRunner:
         completed = 0
         for future in as_completed(future_to_task):
             task_info = future_to_task[future]
-            
+
             try:
                 if self.use_processes:
                     config_id, seed, result = future.result()
@@ -476,22 +482,22 @@ class ExperimentRunner:
                     result = future.result()
                     config_id = result.config_id
                     seed = result.seed
-                
+
                 all_results[config_id].append(result)
-                
+
                 # Save history immediately after each experiment
                 self._save_experiment_history(result)
-                
+
                 completed += 1
                 self.logger.info(f"Progress: {completed}/{total_experiments} completed")
-                
+
             except Exception as exc:
                 if self.use_processes:
                     config_id, seed = task_info
                 else:
                     config, seed = task_info
                     config_id = config.config_id
-                
+
                 self.logger.error(
                     f"Experiment failed: config_id={config_id}, seed={seed}, error={exc}"
                 )
@@ -499,7 +505,7 @@ class ExperimentRunner:
     def _save_configs_metadata(self, configs: List[ExperimentConfig]) -> None:
         """Save configuration metadata to JSON."""
         metadata_file = self.metadata_dir / "configurations.json"
-        
+
         configs_data = []
         for config in configs:
             config_data = config.to_dict()
@@ -512,27 +518,29 @@ class ExperimentRunner:
                 "replacement": config.replacement.__dict__,
             }
             configs_data.append(config_data)
-        
+
         with open(metadata_file, "w") as f:
             json.dump(configs_data, f, indent=2, default=str)
-        
+
         self.logger.info(f"Saved configurations metadata to {metadata_file}")
 
     def _save_experiment_history(self, result: ExperimentResult) -> None:
         """Save complete history for a single experiment run."""
         filename = f"{result.config_id}_seed_{result.seed:03d}_history.csv"
         filepath = self.history_dir / filename
-        
+
         with open(filepath, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "generation",
-                "best_fitness",
-                "mean_fitness",
-                "std_fitness",
-                "worst_fitness",
-            ])
-            
+            writer.writerow(
+                [
+                    "generation",
+                    "best_fitness",
+                    "mean_fitness",
+                    "std_fitness",
+                    "worst_fitness",
+                ]
+            )
+
             # Write generation by generation
             max_len = max(
                 len(result.best_history),
@@ -540,13 +548,21 @@ class ExperimentRunner:
                 len(result.std_history),
                 len(result.worst_history),
             )
-            
+
             for gen in range(max_len):
                 row = [gen]
-                row.append(result.best_history[gen] if gen < len(result.best_history) else "")
-                row.append(result.mean_history[gen] if gen < len(result.mean_history) else "")
-                row.append(result.std_history[gen] if gen < len(result.std_history) else "")
-                row.append(result.worst_history[gen] if gen < len(result.worst_history) else "")
+                row.append(
+                    result.best_history[gen] if gen < len(result.best_history) else ""
+                )
+                row.append(
+                    result.mean_history[gen] if gen < len(result.mean_history) else ""
+                )
+                row.append(
+                    result.std_history[gen] if gen < len(result.std_history) else ""
+                )
+                row.append(
+                    result.worst_history[gen] if gen < len(result.worst_history) else ""
+                )
                 writer.writerow(row)
 
     def save_results_summary(
@@ -558,22 +574,22 @@ class ExperimentRunner:
             return
 
         output_file = self.summary_dir / f"{config.config_id}_summary.csv"
-        
+
         with open(output_file, "w", newline="") as f:
             result_fields = list(results[0].to_dict().keys())
             config_fields = [k for k in config.to_dict().keys() if k != "config_id"]
             fieldnames = result_fields + config_fields
-            
+
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
-            
+
             config_dict = config.to_dict()
             for result in results:
                 row = result.to_dict()
                 for key in config_fields:
                     row[key] = config_dict[key]
                 writer.writerow(row)
-        
+
         self.logger.info(f"Saved summary to {output_file}")
 
     def save_summary_statistics(
@@ -581,7 +597,7 @@ class ExperimentRunner:
     ) -> None:
         """Save aggregate statistics across all configurations."""
         summary_file = self.output_dir / "summary_statistics.csv"
-        
+
         with open(summary_file, "w", newline="") as f:
             fieldnames = [
                 "config_id",
@@ -597,14 +613,14 @@ class ExperimentRunner:
                 "convergence_rate_mean",
                 "convergence_rate_std",
             ]
-            
+
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
-            
+
             for config_id, results in all_results.items():
                 if not results:
                     continue
-                
+
                 summary = {
                     "config_id": config_id,
                     "n_runs": len(results),
@@ -616,19 +632,23 @@ class ExperimentRunner:
                     "evals_to_best_std": np.std([r.evals_to_best for r in results]),
                     "execution_time_mean": np.mean([r.execution_time for r in results]),
                     "execution_time_std": np.std([r.execution_time for r in results]),
-                    "convergence_rate_mean": np.mean([r.convergence_rate for r in results]),
-                    "convergence_rate_std": np.std([r.convergence_rate for r in results]),
+                    "convergence_rate_mean": np.mean(
+                        [r.convergence_rate for r in results]
+                    ),
+                    "convergence_rate_std": np.std(
+                        [r.convergence_rate for r in results]
+                    ),
                 }
-                
+
                 writer.writerow(summary)
-        
+
         self.logger.info(f"Saved summary statistics to {summary_file}")
 
 
 def create_himmelblau_configs() -> List[ExperimentConfig]:
     """Create experiment configurations for Himmelblau problem."""
     configs = []
-    
+
     initializations = [RandomInitialization()]
     selections = [TournamentSelection(tournament_size=3)]
     crossovers = [BlendCrossover(alpha=0.5)]
@@ -636,10 +656,10 @@ def create_himmelblau_configs() -> List[ExperimentConfig]:
     replacements = [
         GenerationalReplacement(),
         ElitistReplacement(elite_size=2),
-        MuPlusLambdaReplacement()
+        MuPlusLambdaReplacement(),
     ]
     population_sizes = [25, 50, 100]
-    
+
     config_id = 0
     for init in initializations:
         for sel in selections:
@@ -662,28 +682,35 @@ def create_himmelblau_configs() -> List[ExperimentConfig]:
                                 )
                             )
                         config_id += 1
-    
+
     return configs
 
 
 def create_tsp_configs() -> List[ExperimentConfig]:
     """Create experiment configurations for TSP problem."""
     configs = []
-    
+
     initializations = [
-        PermutationInitialization(),
         NeighborInitialization(k_best=3),
+        DiverseNNInitialization(),
     ]
     selections = [TournamentSelection(tournament_size=3)]
-    crossovers = [OrderCrossover()]
-    mutations = [SwapMutation(mutation_rate=0.2)]
-    replacements = [
-        GenerationalReplacement(),
-        ElitistReplacement(elite_size=2),
-        MuPlusLambdaReplacement()
+    crossovers = [
+        CycleCrossover(),
+        EdgeRecombinationCrossover(),
+        PMXCrossover(),
     ]
-    population_sizes = [10, 20, 50, 100, 200]
-    
+    mutations = [
+        SwapMutation(mutation_rate=0.02),
+        InversionMutation(mutation_rate=0.02),
+        ScrambleMutation(mutation_rate=0.02),
+    ]
+    replacements = [
+        ElitistReplacement(elite_size=2),
+        MuPlusLambdaReplacement(),
+    ]
+    population_sizes = [100, 200, 1000]
+
     config_id = 0
     for init in initializations:
         for sel in selections:
@@ -706,7 +733,7 @@ def create_tsp_configs() -> List[ExperimentConfig]:
                                 )
                             )
                             config_id += 1
-    
+
     return configs
 
 
@@ -718,25 +745,25 @@ def main():
         log_level=logging.INFO,
         use_processes=False,  # Set to True for ProcessPoolExecutor
     )
-    
+
     himmelblau_configs = create_himmelblau_configs()
     tsp_configs = create_tsp_configs()
     all_configs = himmelblau_configs + tsp_configs
-    
+
     seeds = list(range(10))
-    
+
     runner.logger.info(
         f"Total configurations: {len(all_configs)} "
         f"({len(himmelblau_configs)} Himmelblau + {len(tsp_configs)} TSP)"
     )
-    
+
     all_results = runner.run_experiments(all_configs, seeds)
-    
+
     for config in all_configs:
         runner.save_results_summary(config, all_results[config.config_id])
-    
+
     runner.save_summary_statistics(all_results)
-    
+
     runner.logger.info("All experiments completed successfully!")
 
 
