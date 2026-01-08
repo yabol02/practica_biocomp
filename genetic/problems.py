@@ -815,6 +815,90 @@ class PymooProblem(MultiObjectiveProblem):
             metrics=metrics,
         )
 
+class PymooProblemConstraints(PymooProblem):
+    """Wrapper for pymoo multi-objective problems with constraints."""
+
+    def __init__(
+        self, config, problem_name: str, n_var: Optional[int] = None, **problem_kwargs
+    ):
+        """
+        Initialize Pymoo problem.
+
+        :param config: Problem configuration
+        :type config: ProblemConfig
+        :param problem_name: Name of the pymoo problem (e.g., 'zdt1', 'zdt3', 'mw7', 'mw14')
+        :type problem_name: str
+        :param n_var: Number of variables (optional, uses Pymoo default if not provided)
+        :type n_var: Optional[int]
+        :param problem_kwargs: Additional problem-specific arguments
+        """
+        if n_var is not None:
+            problem_kwargs["n_var"] = n_var
+        
+        self.pymoo_problem = get_problem(problem_name.lower(), **problem_kwargs)
+        
+        self.problem_name = problem_name.upper()
+        self.n_var = self.pymoo_problem.n_var
+        self.n_constr = self.pymoo_problem.n_constr
+        self.lower_bound = self.pymoo_problem.xl
+        self.upper_bound = self.pymoo_problem.xu
+        self.minimize = True
+        
+        # Track constraint violations for each solution
+        self.all_constraint_violations: List[float] = []
+
+        super().__init__(config, problem_name, n_objectives=self.pymoo_problem.n_obj)
+
+    def reset(self):
+        """Reset problem state including constraint violations."""
+        super().reset()
+        self.all_constraint_violations = []
+
+   
+    def evaluate(self, solution: List, **kwargs) -> np.ndarray:
+        """
+        Evaluate solution, storing original objectives but returning penalized ones.
+
+        For constrained problems, stores the ORIGINAL objectives in all_objectives
+        (for correct Pareto front calculation), but returns PENALIZED objectives
+        (to guide selection away from infeasible solutions).
+
+        :param solution: Solution to evaluate
+        :type solution: List
+        :return: Objective values (penalized if constraints violated)
+        :rtype: np.ndarray
+        """
+        self.evaluations_count += 1
+        
+        solution_arr = np.asanyarray(solution)
+        if solution_arr.ndim == 1:
+            solution_arr = solution_arr.reshape(1, -1)
+
+        # Get original objectives (without penalty) for storing
+        if self.n_constr > 0:
+            result = self.pymoo_problem.evaluate(solution_arr, return_values_of=["F", "G"])
+            F_original = result[0].squeeze()
+            G = result[1].squeeze()
+            cv = float(np.sum(np.maximum(0, G)))
+            self.all_constraint_violations.append(cv)
+            
+            # Store ORIGINAL objectives
+            self.all_objectives.append(np.asanyarray(F_original))
+            self.all_solutions.append(np.asanyarray(solution))
+            
+            # Return PENALIZED objectives for selection
+            if cv > 0:
+                return F_original + 1e6 * cv
+            return F_original
+        else:
+            self.all_constraint_violations.append(0.0)
+            F = self.pymoo_problem.evaluate(solution_arr, return_values_of=["F"]).squeeze()
+            self.all_objectives.append(np.asanyarray(F))
+            self.all_solutions.append(np.asanyarray(solution))
+            return F
+
+
+
 
 class MOTSProblem(MultiObjectiveProblem):
     """
