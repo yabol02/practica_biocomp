@@ -140,6 +140,8 @@ class SwapMutation(Mutation):
             multiobjective=population.multiobjective,
         )
         return population
+
+
 class InversionMutation(Mutation):
     """
     Inversion Mutation (equivalente a una operación 2-opt).
@@ -152,6 +154,7 @@ class InversionMutation(Mutation):
     - Preserva subrutas contiguas.
     - Mucho más efectiva que swap para reducir distancia total.
     """
+
     def __init__(self, mutation_rate: float):
         self.mutation_rate = mutation_rate
 
@@ -161,11 +164,12 @@ class InversionMutation(Mutation):
             if random.random() < self.mutation_rate:
                 genotype = ind.genotype.copy().tolist()
                 i, j = sorted(random.sample(range(len(genotype)), 2))
-                genotype[i:j+1] = reversed(genotype[i:j+1])
+                genotype[i : j + 1] = reversed(genotype[i : j + 1])
                 new_inds.append(ind.__class__(genotype=genotype, bounds=ind.bounds))
             else:
                 new_inds.append(ind)
         return Population(new_inds, minimize=population.minimize)
+
 
 class ScrambleMutation(Mutation):
     """
@@ -179,6 +183,7 @@ class ScrambleMutation(Mutation):
     - Puede destruir subrutas buenas.
     - Útil como operador exploratorio ocasional.
     """
+
     def __init__(self, mutation_rate: float):
         self.mutation_rate = mutation_rate
 
@@ -188,20 +193,21 @@ class ScrambleMutation(Mutation):
             if random.random() < self.mutation_rate:
                 genotype = ind.genotype.copy().tolist()
                 i, j = sorted(random.sample(range(len(genotype)), 2))
-                segment = genotype[i:j+1]
+                segment = genotype[i : j + 1]
                 random.shuffle(segment)
-                genotype[i:j+1] = segment
+                genotype[i : j + 1] = segment
                 new_inds.append(ind.__class__(genotype=genotype, bounds=ind.bounds))
             else:
                 new_inds.append(ind)
         return Population(new_inds, minimize=population.minimize)
 
+
 class TwoOptSearchMutation(Mutation):
     """
     Aplicar una mejora 2-opt sencilla a cada individuo.
-    
-    
-    [!] Esto lo vuelve un algoritmo memético (Habría que aumentar el contador de evaluaciones para usarlo):    
+
+
+    [!] Esto lo vuelve un algoritmo memético (Habría que aumentar el contador de evaluaciones para usarlo):
 
     Pasos:
     - Explora todo el vecindario 2-opt del tour.
@@ -209,6 +215,7 @@ class TwoOptSearchMutation(Mutation):
     - Aplica una inversión solo si reduce la distancia.
     - Repite hasta que no exista ninguna mejora posible.
     """
+
     def __init__(self, mutation_rate: float = 1.0):
         self.mutation_rate = mutation_rate
 
@@ -221,15 +228,19 @@ class TwoOptSearchMutation(Mutation):
                 improved = True
                 while improved:
                     improved = False
-                    for i in range(n-1):
-                        for j in range(i+1, n):
+                    for i in range(n - 1):
+                        for j in range(i + 1, n):
                             # Calcular cambio de costo
-                            a, b = genotype[i], genotype[(i+1)%n]
-                            c, d = genotype[j], genotype[(j+1)%n]
+                            a, b = genotype[i], genotype[(i + 1) % n]
+                            c, d = genotype[j], genotype[(j + 1) % n]
                             # Asumiendo distancia euclidiana o conocida en el individuo
-                            delta = (ind.dist(a, c) + ind.dist(b, d)) - (ind.dist(a, b) + ind.dist(c, d))
+                            delta = (ind.dist(a, c) + ind.dist(b, d)) - (
+                                ind.dist(a, b) + ind.dist(c, d)
+                            )
                             if delta < 0:  # mejora
-                                genotype[i+1:j+1] = reversed(genotype[i+1:j+1])
+                                genotype[i + 1 : j + 1] = reversed(
+                                    genotype[i + 1 : j + 1]
+                                )
                                 improved = True
                                 break
                         if improved:

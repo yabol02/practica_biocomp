@@ -957,9 +957,7 @@ class MOTSProblem(MultiObjectiveProblem):
 
         return time_matrix
 
-    def _compute_tour_distance(
-        self, tour: np.ndarray, closed: bool = True
-    ) -> float:
+    def _compute_tour_distance(self, tour: np.ndarray, closed: bool = True) -> float:
         """
         Compute total Euclidean distance of a tour.
 
@@ -1052,8 +1050,8 @@ class MOTSProblem(MultiObjectiveProblem):
         :rtype: Tuple[int, int]
         """
         return (0, self.n_cities - 1)
-    
-    def get_nsga2_result(self, pop_size = 100, seed = None, verbose = False):
+
+    def get_nsga2_result(self, pop_size=100, seed=None, verbose=False):
         self.reset()
 
         pymoo_problem = PymooMOTSPWrapper(self)
@@ -1063,7 +1061,7 @@ class MOTSProblem(MultiObjectiveProblem):
             sampling=PermutationRandomSampling(),
             crossover=OrderCrossover(prob=0.9),
             mutation=InversionMutation(prob=0.2),
-            eliminate_duplicates=True
+            eliminate_duplicates=True,
         )
 
         res = pymoo_minimize(
@@ -1071,14 +1069,11 @@ class MOTSProblem(MultiObjectiveProblem):
             algorithm,
             termination=("n_gen", self.config.max_generations),
             seed=seed,
-            verbose=verbose
+            verbose=verbose,
         )
 
         # Actualiza Pareto usando resultados de Pymoo
-        self.update_pareto_front(
-            new_objectives=res.F,
-            new_solutions=res.X
-        )
+        self.update_pareto_front(new_objectives=res.F, new_solutions=res.X)
 
         return self.get_result()
 
@@ -1110,6 +1105,7 @@ class MOTSProblem(MultiObjectiveProblem):
 
         return scatter
 
+
 class PymooMOTSPWrapper(ElementwiseProblem):
     """Wrapper to use MOTSProblem with pymoo."""
 
@@ -1117,14 +1113,7 @@ class PymooMOTSPWrapper(ElementwiseProblem):
         self.problem = mots_problem
         n = mots_problem.n_cities
 
-        super().__init__(
-            n_var=n,
-            n_obj=2,
-            n_constr=0,
-            xl=0,
-            xu=n - 1,
-            type_var=int
-        )
+        super().__init__(n_var=n, n_obj=2, n_constr=0, xl=0, xu=n - 1, type_var=int)
 
     def _evaluate(self, x, out, *args, **kwargs):
         objectives = self.problem.evaluate(x)

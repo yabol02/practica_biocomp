@@ -22,6 +22,7 @@ class OptimizationResult:
 @dataclass
 class SingleObjectiveResult(OptimizationResult):
     """Results for single-objective optimization."""
+
     best_solution_found_on: int = -1
 
     def save_csv(self, filepath: str) -> None:

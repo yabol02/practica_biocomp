@@ -188,10 +188,12 @@ class BlendCrossover(Crossover):
         return RealIndividual(genotype=child1_genotype), RealIndividual(
             genotype=child2_genotype
         )
+
+
 class PMXCrossover(Crossover):
     """
     Partially Mapped Crossover (PMX) para permutaciones TSP.
-    
+
     Copia un segmento de ciudades de un padre y reubica las restantes según la correspondencia del otro padre
     Es una versión más adecuada que nuestro Blend Crossover ajustado a TSP
 
@@ -213,35 +215,44 @@ class PMXCrossover(Crossover):
        rellenar las posiciones restantes de C con los genes de B
        manteniendo su orden relativo.
     """
+
     def cross(self, population: Population) -> Population:
         new_inds = []
         genome_length = len(population.individuals[0].genotype)
-        
+
         for i in range(0, len(population), 2):
             parent1 = population.individuals[i]
-            parent2 = population.individuals[min(i+1, len(population)-1)]
-            
-            p1_gen = np.array(parent1.genotype) if not isinstance(parent1.genotype, np.ndarray) else parent1.genotype
-            p2_gen = np.array(parent2.genotype) if not isinstance(parent2.genotype, np.ndarray) else parent2.genotype
-            
+            parent2 = population.individuals[min(i + 1, len(population) - 1)]
+
+            p1_gen = (
+                np.array(parent1.genotype)
+                if not isinstance(parent1.genotype, np.ndarray)
+                else parent1.genotype
+            )
+            p2_gen = (
+                np.array(parent2.genotype)
+                if not isinstance(parent2.genotype, np.ndarray)
+                else parent2.genotype
+            )
+
             # 1. Seleccionar puntos de corte
             idx1, idx2 = sorted(random.sample(range(genome_length), 2))
-            
+
             child1_gen = np.full(genome_length, -1)
             child2_gen = np.full(genome_length, -1)
 
             # 2. Copiar segmento central
-            child1_gen[idx1:idx2+1] = p1_gen[idx1:idx2+1]
-            child2_gen[idx1:idx2+1] = p2_gen[idx1:idx2+1]
+            child1_gen[idx1 : idx2 + 1] = p1_gen[idx1 : idx2 + 1]
+            child2_gen[idx1 : idx2 + 1] = p2_gen[idx1 : idx2 + 1]
 
             p1_list = p1_gen.tolist()
             p2_list = p2_gen.tolist()
 
             # 3. Mapeo de segmentos
-            for k in range(idx1, idx2+1):
+            for k in range(idx1, idx2 + 1):
                 g1 = p1_gen[k]
                 g2 = p2_gen[k]
-                
+
                 # Para hijo 1: colocar g2 de parent2
                 if g2 not in child1_gen:
                     pos = k
@@ -250,7 +261,7 @@ class PMXCrossover(Crossover):
                         val_at_pos = p1_gen[pos]
                         pos = p2_list.index(val_at_pos)
                     child1_gen[pos] = g2
-                
+
                 # Para hijo 2: colocar g1 de parent1
                 if g1 not in child2_gen:
                     pos = k
@@ -264,7 +275,7 @@ class PMXCrossover(Crossover):
                 for idx in range(genome_length):
                     if child[idx] == -1:
                         child[idx] = donor[idx]
-            
+
             fill_remaining(child1_gen, p2_gen)
             fill_remaining(child2_gen, p1_gen)
 
@@ -272,11 +283,13 @@ class PMXCrossover(Crossover):
             new_inds.append(child_class(genotype=child1_gen, bounds=parent1.bounds))
             new_inds.append(child_class(genotype=child2_gen, bounds=parent1.bounds))
 
-        return Population(new_inds[:len(population)], minimize=population.minimize)
+        return Population(new_inds[: len(population)], minimize=population.minimize)
+
+
 class CycleCrossover(Crossover):
     """
     Cycle Crossover (CX) para permutaciones TSP.
-    
+
     Preserva posiciones absolutas de los genes.
 
     Fuente: https://www.youtube.com/watch?v=DJ-yBmEEkgA
@@ -288,6 +301,7 @@ class CycleCrossover(Crossover):
     5. Repetir el proceso desde otra posición no asignada, alternando el padre de referencia, hasta completar todo el genoma.
 
     """
+
     def cross(self, population: Population) -> Population:
         new_inds = []
         n = len(population.individuals[0].genotype)
@@ -296,11 +310,19 @@ class CycleCrossover(Crossover):
             p1 = population.individuals[i]
             p2 = population.individuals[min(i + 1, len(population) - 1)]
 
-            p1 = np.array(p1.genotype) if not isinstance(p1.genotype, np.ndarray) else p1.genotype
-            p2 = np.array(p2.genotype) if not isinstance(p2.genotype, np.ndarray) else p2.genotype
+            p1 = (
+                np.array(p1.genotype)
+                if not isinstance(p1.genotype, np.ndarray)
+                else p1.genotype
+            )
+            p2 = (
+                np.array(p2.genotype)
+                if not isinstance(p2.genotype, np.ndarray)
+                else p2.genotype
+            )
 
-            #p1 = p1.to_list()
-            #p2 = p2.to_list()
+            # p1 = p1.to_list()
+            # p2 = p2.to_list()
 
             c1 = np.full(n, -1)
             c2 = np.full(n, -1)
@@ -338,14 +360,15 @@ class CycleCrossover(Crossover):
             new_inds.append(child_class(genotype=c1, bounds=bounds))
             new_inds.append(child_class(genotype=c2, bounds=bounds))
 
-        return Population(new_inds[:len(population)], minimize=population.minimize)
+        return Population(new_inds[: len(population)], minimize=population.minimize)
+
 
 class EdgeRecombinationCrossover(Crossover):
     """
     Edge Recombination Crossover (ERX) para TSP.
 
     Preserva el mayor número posible de aristas (adyacencias entre ciudades) presentes en los padres.
-    
+
     Fuente: https://content.wolfram.com/sites/13/2018/02/13-4-1.pdf (y otras más rollo tutorial)
 
     Pasos:
@@ -365,6 +388,7 @@ class EdgeRecombinationCrossover(Crossover):
            elegir aleatoriamente una ciudad aún no utilizada.
     5. Repetir los pasos 3-4 hasta completar el tour.
     """
+
     def cross(self, population: Population) -> Population:
         def build_edge_map(p1, p2):
             edge_map = {}
@@ -372,9 +396,11 @@ class EdgeRecombinationCrossover(Crossover):
             for i in range(n):
                 city = p1[i]
                 neighbors = set()
-                neighbors.add(p1[(i-1)%n]); neighbors.add(p1[(i+1)%n])
+                neighbors.add(p1[(i - 1) % n])
+                neighbors.add(p1[(i + 1) % n])
                 j = np.where(p2 == city)[0][0]
-                neighbors.add(p2[(j-1)%n]); neighbors.add(p2[(j+1)%n])
+                neighbors.add(p2[(j - 1) % n])
+                neighbors.add(p2[(j + 1) % n])
                 edge_map[city] = neighbors
             return edge_map
 
@@ -403,10 +429,18 @@ class EdgeRecombinationCrossover(Crossover):
         new_inds = []
         for i in range(0, len(population), 2):
             p1 = population.individuals[i]
-            p2 = population.individuals[min(i+1, len(population)-1)]
+            p2 = population.individuals[min(i + 1, len(population) - 1)]
 
-            parent1 = np.array(p1.genotype) if not isinstance(p1.genotype, np.ndarray) else p1.genotype
-            parent2 = np.array(p2.genotype) if not isinstance(p2.genotype, np.ndarray) else p2.genotype
+            parent1 = (
+                np.array(p1.genotype)
+                if not isinstance(p1.genotype, np.ndarray)
+                else p1.genotype
+            )
+            parent2 = (
+                np.array(p2.genotype)
+                if not isinstance(p2.genotype, np.ndarray)
+                else p2.genotype
+            )
 
             # parent1 = p1.to_list()
             # parent2 = p2.to_list()
@@ -418,5 +452,5 @@ class EdgeRecombinationCrossover(Crossover):
             new_inds.append(child_class(genotype=child1_gen, bounds=bounds))
             new_inds.append(child_class(genotype=child2_gen, bounds=bounds))
         return Population(new_inds[: len(population)], minimize=population.minimize)
-    
+
     # TODO: Podemos implementar EAX (Edge Assembly Crossover) pero es complicado (aunk bastante estado del arte)

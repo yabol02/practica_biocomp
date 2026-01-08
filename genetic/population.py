@@ -73,7 +73,7 @@ class Population:
             self._best_individual = max(self.individuals, key=lambda ind: ind.fitness)
 
         return self._best_individual
-    
+
     @property
     def stats(self) -> dict:
         """
@@ -85,12 +85,12 @@ class Population:
         """
         if not self.individuals:
             raise ValueError("Population is empty")
-        
+
         fits = np.array([ind.fitness for ind in self.individuals if ind.is_evaluated])
-    
+
         if fits.size == 0:
             return {"status": "Unevaluated"}
-    
+
         return {
             "best": np.min(fits) if self.minimize else np.max(fits),
             "mean": np.mean(fits),

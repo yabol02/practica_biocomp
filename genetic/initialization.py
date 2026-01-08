@@ -164,19 +164,21 @@ class NeighborInitialization(Initialization):
 
         return Population(individuals, minimize=problem.minimize)
 
+
 class DiverseNNInitialization(Initialization):
     """
     Incializacion determinista y diversificada para TSP:
-    
+
     1. Asigna el nodo de inicio de forma secuencial  para cubrir el máximo número de ciudades de inicio diferntes
     2. COnstruye la ruta eligiendo siemrpe la ciudad más cercana (Greedy estricto)
     """
+
     def initialize(
-            self,
-            population_size: int,
-            bounds: Tuple[int, int],
-            problem: TSProblem,
-        ) -> Population:
+        self,
+        population_size: int,
+        bounds: Tuple[int, int],
+        problem: TSProblem,
+    ) -> Population:
         """
         Genera una población inicial diversa usando Nearest Neighbor determinista.
 
@@ -187,7 +189,7 @@ class DiverseNNInitialization(Initialization):
         """
         individuals = []
         n_cities = problem.dist_matrix.shape[0]
-        
+
         # Pre-calcular matriz si es numpy para acceso rápido, o usar la del problema
         dist_matrix = problem.dist_matrix
 
@@ -195,15 +197,15 @@ class DiverseNNInitialization(Initialization):
             # Lógica de inicio diversificada:
             # Si pop_size <= n_cities, cada uno inicia en una ciudad distinta.
             # Si pop_size > n_cities, se repiten en ciclo (Round Robin).
-                # TODO: dudo que se de el caso, pero en caso de que haya menos individuos que ciudades, 
-                # podríamos hacer que las ciudades de inicializacion se distribuyan equitativamente por el mapa
-                # pero creo que no tiene sentido tener menos individuos en la poblacion que ciudades
+            # TODO: dudo que se de el caso, pero en caso de que haya menos individuos que ciudades,
+            # podríamos hacer que las ciudades de inicializacion se distribuyan equitativamente por el mapa
+            # pero creo que no tiene sentido tener menos individuos en la poblacion que ciudades
             start_node = i % n_cities
-            
+
             # Conjunto de no visitados
             unvisited = set(range(n_cities))
             unvisited.remove(start_node)
-            
+
             current = start_node
             genotype = [current]
 
@@ -212,7 +214,7 @@ class DiverseNNInitialization(Initialization):
                 # Buscamos el vecino más cercano estrictamente entre los no visitados
                 # Opción optimizada para legibilidad:
                 next_city = min(unvisited, key=lambda city: dist_matrix[current, city])
-                
+
                 genotype.append(next_city)
                 unvisited.remove(next_city)
                 current = next_city
