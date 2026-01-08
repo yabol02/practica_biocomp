@@ -821,6 +821,154 @@ class MOTSProblem(MultiObjectiveProblem):
     Multi-Objective Traveling Salesman Problem (MO-TSP).
 
     This problem extends the classic TSP by introducing a second objective: travel time.
+    While distance is computed as Euclidean distance between cities, travel time is 
+    generated randomly to simulate independent variable factors (like traffic).
+
+    Objectives:
+        1. Total distance: Sum of Euclidean distances along the tour.
+        2. Total time: Sum of random travel times between cities.
+    """
+
+    def __init__(
+        self,
+        config: 'ProblemConfig',
+        cities: Iterable[Tuple[float, float]],
+        seed: int = 42,
+    ):
+        """
+        Initialize Multi-Objective TSP.
+
+        :param config: Problem configuration
+        :type config: ProblemConfig
+        :param cities: Iterable of (x, y) city coordinates
+        :type cities: Iterable[Tuple[float, float]]
+        :param seed: Seed for random time matrix generation (reproducibility)
+        :type seed: int
+        """
+        self.cities = np.asanyarray(cities, dtype=np.float64)
+        self.n_cities = self.cities.shape[0]
+        self.n_var = self.n_cities
+        self.seed = seed
+
+        super().__init__(config, n_objectives=2)
+
+        self.dist_matrix = self._compute_distance_matrix()
+        self.time_matrix = self._generate_random_time_matrix()
+        self.minimize = True
+
+    def _compute_distance_matrix(self) -> np.ndarray:
+        """
+        Compute Euclidean distance matrix between all cities based on coordinates.
+
+        :return: Symmetric distance matrix of shape (n_cities, n_cities)
+        :rtype: np.ndarray
+        """
+        diff = self.cities[:, np.newaxis, :] - self.cities[np.newaxis, :, :]
+        return np.sqrt(np.sum(diff**2, axis=-1))
+
+    def _generate_random_time_matrix(self) -> np.ndarray:
+        """
+        Generate random travel time matrix between all cities.
+
+        :return: Asymmetric time matrix of shape (n_cities, n_cities)
+        :rtype: np.ndarray
+        """
+        rng = np.random.default_rng(self.seed)
+        times = rng.uniform(0, 300, size=(self.n_cities, self.n_cities))
+        
+        # Diagonal is zero
+        np.fill_diagonal(times, 0)
+        return times
+
+    def _compute_tour_distance(self, tour: np.ndarray, closed: bool = True) -> float:
+        """
+        Compute total Euclidean distance of a tour.
+
+        :param tour: Ordered array of city indices defining the tour
+        :type tour: np.ndarray
+        :param closed: Whether to close the tour (return to start city)
+        :type closed: bool
+        :return: Total tour distance
+        :rtype: float
+        """
+        tour = np.asanyarray(tour, dtype=int)
+        from_cities = tour[:-1]
+        to_cities = tour[1:]
+
+        total = self.dist_matrix[from_cities, to_cities].sum()
+
+        if closed:
+            total += self.dist_matrix[tour[-1], tour[0]]
+
+        return float(total)
+
+    def _compute_tour_time(self, tour: np.ndarray, closed: bool = True) -> float:
+        """
+        Compute total travel time of a tour using the random time matrix.
+
+        :param tour: Ordered array of city indices defining the tour
+        :type tour: np.ndarray
+        :param closed: Whether to close the tour (return to start city)
+        :type closed: bool
+        :return: Total tour travel time
+        :rtype: float
+        """
+        tour = np.asanyarray(tour, dtype=int)
+        from_cities = tour[:-1]
+        to_cities = tour[1:]
+
+        total = self.time_matrix[from_cities, to_cities].sum()
+
+        if closed:
+            total += self.time_matrix[tour[-1], tour[0]]
+
+        return float(total)
+
+    def _fitness_function(self, solution: Union[List, np.ndarray]) -> np.ndarray:
+        """
+        Evaluate both objectives for a given solution.
+
+        :param solution: Ordered array of city indices defining the tour
+        :type solution: Union[List, np.ndarray]
+        :return: Array with [total_distance, total_time]
+        :rtype: np.ndarray
+        """
+        # If solutions are provided as continuous floats (standard Pymoo), convert to permutation
+        if np.isrealobj(solution) and not np.issubdtype(solution.dtype, np.integer):
+            tour = np.argsort(solution)
+        else:
+            tour = np.asanyarray(solution, dtype=int)
+
+        self._validate_solution(tour)
+
+        distance = self._compute_tour_distance(tour, closed=True)
+        time = self._compute_tour_time(tour, closed=True)
+
+        return np.array([distance, time])
+
+    def _validate_solution(self, solution: np.ndarray) -> None:
+        """
+        Validate that a solution is a valid tour.
+
+        :param solution: Solution to validate
+        :type solution: np.ndarray
+        :raises ValueError: If solution is invalid
+        """
+        if len(solution) != self.n_cities:
+            raise ValueError(
+                f"Solution must visit all {self.n_cities} cities exactly once. "
+                f"Got {len(solution)} cities."
+            )
+
+        if len(np.unique(solution)) != self.n_cities:
+            raise ValueError("Solution must visit each city exactly once.")
+
+
+class ElevationMOTSProblem(MultiObjectiveProblem):
+    """
+    Multi-Objective Traveling Salesman Problem (MO-TSP).
+
+    This problem extends the classic TSP by introducing a second objective: travel time.
     While distance is computed as Euclidean distance between cities, travel time accounts
     for elevation differences between cities, generated using Perlin noise.
 
