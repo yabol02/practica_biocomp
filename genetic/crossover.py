@@ -159,16 +159,7 @@ class BlendCrossover(Crossover):
     def _blend_individuals(
         self, parent1: Individual, parent2: Individual
     ) -> Tuple[Individual, Individual]:
-        """
-        Create offspring using blend crossover.
 
-        :param parent1: First parent
-        :type parent1: Individual
-        :param parent2: Second parent
-        :type parent2: Individual
-        :return: Two offspring
-        :rtype: Tuple[Individual, Individual]
-        """
         child1_genotype = []
         child2_genotype = []
 
@@ -182,11 +173,16 @@ class BlendCrossover(Crossover):
             low = min_val - self.alpha * range_val
             high = max_val + self.alpha * range_val
 
-            child1_genotype.append(random.uniform(low, high))
-            child2_genotype.append(random.uniform(low, high))
+            b_min, b_max = bounds[i]
 
-        return RealIndividual(genotype=child1_genotype), RealIndividual(
-            genotype=child2_genotype
+            val1 = random.uniform(low, high)
+            val2 = random.uniform(low, high)
+
+            child1_genotype.append(max(b_min, min(val1, b_max)))
+            child2_genotype.append(max(b_min, min(val2, b_max)))
+
+        return RealIndividual(genotype=child1_genotype, bounds=bounds), RealIndividual(
+            genotype=child2_genotype, bounds=bounds
         )
 
 
