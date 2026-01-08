@@ -93,8 +93,8 @@ class SingleObjectiveProblem(Problem):
     """Base class for single-objective problems."""
 
     def __init__(self, config: ProblemConfig, **kwargs):
+        self.minimize = kwargs.pop("minimize", True)
         super().__init__(config, **kwargs)
-        self.minimize = kwargs.get("minimize", True)
         self.n_var: int = 1
         self.best_fitness: float = float("inf") if self.minimize else float("-inf")
         self.best_sol_found_on: int = -1
