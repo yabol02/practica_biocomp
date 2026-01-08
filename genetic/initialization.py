@@ -1,12 +1,13 @@
 import random
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 
 from .individual import PermutationIndividual, RealIndividual
 from .population import Population
-from .problems import SingleObjectiveProblem, TSProblem
+from .problems import (MultiObjectiveProblem, Problem, SingleObjectiveProblem,
+                       TSProblem)
 
 
 class Initialization(ABC):
@@ -14,7 +15,10 @@ class Initialization(ABC):
 
     @abstractmethod
     def initialize(
-        self, population_size: int, bounds: List, problem: SingleObjectiveProblem
+        self,
+        population_size: int,
+        bounds: List,
+        problem: Problem,
     ) -> Population:
         """
         Initialize population.
@@ -34,6 +38,13 @@ class Initialization(ABC):
         """Alias for `initialize` method."""
         return self.initialize(*args, **kwargs)
 
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
 
 class RandomInitialization(Initialization):
     """Random uniform initialization within bounds."""
@@ -42,7 +53,7 @@ class RandomInitialization(Initialization):
         self,
         population_size: int,
         bounds: List[Tuple[float, float]],
-        problem: SingleObjectiveProblem,
+        problem: Union[SingleObjectiveProblem, MultiObjectiveProblem],
     ) -> Population:
         """
         Create random population.
@@ -52,12 +63,15 @@ class RandomInitialization(Initialization):
         :param bounds: Variable bounds
         :type bounds: List
         :param problem: Problem instance
-        :type problem: Problem
+        :type problem: Union[SingleObjectiveProblem, MultiObjectiveProblem]
         :return: Random population
         :rtype: Population
         """
         individuals = [RealIndividual(bounds=bounds) for _ in range(population_size)]
-        return Population(individuals, minimize=problem.minimize)
+        multiobjective = isinstance(problem, MultiObjectiveProblem)
+        return Population(
+            individuals, minimize=problem.minimize, multiobjective=multiobjective
+        )
 
 
 class PermutationInitialization(Initialization):
@@ -67,7 +81,7 @@ class PermutationInitialization(Initialization):
         self,
         population_size: int,
         bounds: Tuple[int, int],
-        problem: SingleObjectiveProblem,
+        problem: Union[SingleObjectiveProblem, MultiObjectiveProblem],
     ) -> Population:
         """
         Create a population of individuals with permuted genotypes.
@@ -83,7 +97,10 @@ class PermutationInitialization(Initialization):
         individuals = [
             PermutationIndividual(bounds=bounds) for _ in range(population_size)
         ]
-        return Population(individuals, minimize=problem.minimize)
+        multiobjective = isinstance(problem, MultiObjectiveProblem)
+        return Population(
+            individuals, minimize=problem.minimize, multiobjective=multiobjective
+        )
 
 
 class NeighborInitialization(Initialization):
@@ -138,6 +155,65 @@ class NeighborInitialization(Initialization):
                 nearest_indices = np.argsort(distances)[:k]
                 chosen_idx = random.choice(nearest_indices)
                 next_city = unvisited[chosen_idx]
+
+                genotype.append(next_city)
+                unvisited.remove(next_city)
+                current = next_city
+
+            individuals.append(PermutationIndividual(genotype=genotype, bounds=bounds))
+
+        return Population(individuals, minimize=problem.minimize)
+
+
+class DiverseNNInitialization(Initialization):
+    """
+    Incializacion determinista y diversificada para TSP:
+
+    1. Asigna el nodo de inicio de forma secuencial  para cubrir el máximo número de ciudades de inicio diferntes
+    2. COnstruye la ruta eligiendo siemrpe la ciudad más cercana (Greedy estricto)
+    """
+
+    def initialize(
+        self,
+        population_size: int,
+        bounds: Tuple[int, int],
+        problem: TSProblem,
+    ) -> Population:
+        """
+        Genera una población inicial diversa usando Nearest Neighbor determinista.
+
+        :param population_size: Número de individuos a generar.
+        :param bounds: Límites del genotipo (usado por PermutationIndividual).
+        :param problem: Instancia del problema TSP (debe tener dist_matrix).
+        :return: Población inicializada.
+        """
+        individuals = []
+        n_cities = problem.dist_matrix.shape[0]
+
+        # Pre-calcular matriz si es numpy para acceso rápido, o usar la del problema
+        dist_matrix = problem.dist_matrix
+
+        for i in range(population_size):
+            # Lógica de inicio diversificada:
+            # Si pop_size <= n_cities, cada uno inicia en una ciudad distinta.
+            # Si pop_size > n_cities, se repiten en ciclo (Round Robin).
+            # TODO: dudo que se de el caso, pero en caso de que haya menos individuos que ciudades,
+            # podríamos hacer que las ciudades de inicializacion se distribuyan equitativamente por el mapa
+            # pero creo que no tiene sentido tener menos individuos en la poblacion que ciudades
+            start_node = i % n_cities
+
+            # Conjunto de no visitados
+            unvisited = set(range(n_cities))
+            unvisited.remove(start_node)
+
+            current = start_node
+            genotype = [current]
+
+            # Construcción del tour
+            while unvisited:
+                # Buscamos el vecino más cercano estrictamente entre los no visitados
+                # Opción optimizada para legibilidad:
+                next_city = min(unvisited, key=lambda city: dist_matrix[current, city])
 
                 genotype.append(next_city)
                 unvisited.remove(next_city)

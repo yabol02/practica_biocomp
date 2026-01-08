@@ -13,15 +13,20 @@ class Population:
     """Represents a population of individuals."""
 
     def __init__(
-        self, individuals: Optional[List[Individual]] = None, minimize: bool = True
+        self,
+        individuals: Optional[List[Individual]] = None,
+        minimize: bool = True,
+        multiobjective: bool = False,
     ):
         """
         Initialize population.
 
         :param individuals: Initial list of individuals
         :type individuals: Optional[List[Individual]]
-        :param minimize: True to minimize fitness, False to maximize
+        :param minimize: True to minimize fitness, False to maximize. Default is True
         :type minimize: bool
+        :param multiobjective: True if the problem is multi-objective. Default is False
+        :type multiobjective: bool
         """
         self.individuals: List[Individual] = (
             individuals if individuals is not None else []
@@ -29,6 +34,7 @@ class Population:
         self.minimize: bool = minimize
         self._best_individual: Optional[Individual] = None
         self._is_sorted: bool = False
+        self.multiobjective: bool = multiobjective
 
     def evaluate_population(self, fitness_function: Callable[[Any], float]) -> None:
         """
@@ -44,8 +50,10 @@ class Population:
 
         for ind in unevaluated:
             ind.fitness = fitness_function(ind.genotype)
-        self._best_individual = self.best_individual
-        self._is_sorted = False
+
+        if not self.multiobjective:
+            self._best_individual = self.best_individual
+            self._is_sorted = False
 
     @property
     def best_individual(self) -> Individual:
@@ -63,7 +71,32 @@ class Population:
             self._best_individual = min(self.individuals, key=lambda ind: ind.fitness)
         else:
             self._best_individual = max(self.individuals, key=lambda ind: ind.fitness)
+
         return self._best_individual
+
+    @property
+    def stats(self) -> dict:
+        """
+        Returns a dict with comprehensive statistics of the population's fitness.
+
+        :return: Dictionary with the statistics
+        :rtype: dict
+        :raises ValueError: If population is empty
+        """
+        if not self.individuals:
+            raise ValueError("Population is empty")
+
+        fits = np.array([ind.fitness for ind in self.individuals if ind.is_evaluated])
+
+        if fits.size == 0:
+            return {"status": "Unevaluated"}
+
+        return {
+            "best": np.min(fits) if self.minimize else np.max(fits),
+            "mean": np.mean(fits),
+            "std": np.std(fits),
+            "worst": np.max(fits) if self.minimize else np.min(fits),
+        }
 
     @property
     def bounds(self) -> Optional[List]:
@@ -133,7 +166,22 @@ class Population:
         return self.individuals[key]
 
     def __repr__(self) -> str:
-        return (
-            f"Population(size={len(self)}, minimize={self.minimize}, "
-            f"best_fitness={self.best_individual.fitness if self._best_individual else 'Unevaluated'})"
+        best = "None"
+        if np.any(self.individuals) and self._best_individual is not None:
+            val = self.best_individual.fitness
+            best = (
+                f"{val:.4f}"
+                if isinstance(val, float)
+                else np.array2string(val, precision=3)
+            )
+            if len(best) > 20:
+                best = best[:15] + "..."
+        return f"Population(size={len(self)}, mode={'min' if self.minimize else 'max'}, best={best})"
+
+    def __str__(self) -> str:
+        status = (
+            "Evaluated"
+            if all(i.is_evaluated for i in self.individuals)
+            else "Unevaluated"
         )
+        return f"<Population size={len(self)} ({status})>"

@@ -24,11 +24,12 @@ class Replacement(ABC):
         """Alias for `replace` method."""
         return self.replace(*args, **kwargs)
 
-    def __str__(self) -> str:
-        return self.__class__.__name__
-
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}()"
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>"
 
 
 class GenerationalReplacement(Replacement):
@@ -45,6 +46,10 @@ class GenerationalReplacement(Replacement):
         :return: Offspring as new population
         :rtype: Population
         """
+        if len(parents) != len(offspring):
+            raise ValueError(
+                "Population sizes of parents and offspring must be equal for GenerationalReplacement."
+            )
         return offspring
 
 
@@ -88,7 +93,11 @@ class ElitistReplacement(Replacement):
         )[:remaining_size]
 
         new_individuals = elite + best_offspring
-        return Population(new_individuals, minimize=parents.minimize)
+        return Population(
+            new_individuals,
+            minimize=parents.minimize,
+            multiobjective=parents.multiobjective,
+        )
 
 
 class MuPlusLambdaReplacement(Replacement):
@@ -112,4 +121,6 @@ class MuPlusLambdaReplacement(Replacement):
             combined, key=lambda ind: ind.fitness if parents.minimize else -ind.fitness
         )[:target_size]
 
-        return Population(best, minimize=parents.minimize)
+        return Population(
+            best, minimize=parents.minimize, multiobjective=parents.multiobjective
+        )

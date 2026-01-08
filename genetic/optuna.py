@@ -1,13 +1,9 @@
-# Standard library
 import logging
-import math
 import random
 import time
 from copy import deepcopy
-from itertools import combinations
 from typing import Any, Dict, Optional
 
-# Third-party libraries
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
@@ -19,15 +15,10 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
-# Local application imports
 from .algorithms import GeneticAlgorithmSO
 from .configurations import ProblemConfig
-from .factories import (
-    crossover_factory,
-    initialization_factory,
-    mutation_factory,
-    replacement_factory,
-)
+from .factories import (crossover_factory, initialization_factory,
+                        mutation_factory, replacement_factory)
 from .problems import TSProblem
 from .selection import *
 
@@ -37,7 +28,7 @@ class OptunaOptimizer:
         "initialization_name": ["permutation", "neighbor", "diverse_nn"],
         "crossover_name": ["order", "pmx", "cycle", "edge_recombination"],
         "mutation_name": ["swap", "inversion", "scramble"],
-        "replacement_name": [ "elitist","generational", "mu+lambda"],
+        "replacement_name": ["elitist", "generational", "mu+lambda"],
         "population_size": {"min": 100, "max": 10_000, "step": 10},
         "mutation_rate": {"min": 0.0, "max": 1.0, "step": 0.05},
         "tournament_size": {"min": 1, "max": 50, "step": 2},
@@ -212,7 +203,8 @@ class OptunaOptimizer:
         self.logger.debug("Flush de %d registros al DataFrame", len(self._records))
         df_new = pd.DataFrame(self._records)
         self.trials_df = (
-            df_new if self.trials_df.empty
+            df_new
+            if self.trials_df.empty
             else pd.concat([self.trials_df, df_new], ignore_index=True)
         )
         self._records = []
@@ -355,7 +347,7 @@ class OptunaOptimizer:
             ga.initialize_random_state()
             result = self._run_genetic_algorithm(ga)
 
-            loss = float(result.best_fitness) # type: ignore
+            loss = float(result.best_fitness)  # type: ignore
             genotype = result.best_solution
 
             self.logger.info(
@@ -467,9 +459,7 @@ class OptunaOptimizer:
         mutation_rate = trial.suggest_float(
             "mutation_rate", mr_info["min"], mr_info["max"], step=mr_info["step"]
         )
-        mutation_info = trial.suggest_categorical(
-            "mutation_name", sp["mutation_name"]
-        )
+        mutation_info = trial.suggest_categorical("mutation_name", sp["mutation_name"])
         mutation = mutation_factory(mutation_info, mutation_rate=mutation_rate)
 
         replacement_name = trial.suggest_categorical(
@@ -527,7 +517,6 @@ class OptunaOptimizer:
         if avg_loss < self.best_ever_avg_loss:
             self.best_ever_avg_loss = avg_loss
             self.best_ever_conf = deepcopy(config)
-        
         print("**************************************")
         return avg_loss
 
@@ -598,148 +587,224 @@ class OptunaOptimizer:
 
 
 class OptunaAnalyzer:
-    def __init__(self, study, parquet_path="./data/optuna_ga_results.parquet"):
+    """
+    Clase para analizar exhaustivamente los resultados de un estudio de Optuna
+    aplicado a un algoritmo genético. Permite:
+      - Resumir métricas por trial (mean, std, cv, min, max)
+      - Identificar top-K configuraciones
+      - Evaluar estabilidad y robustez
+      - Test estadístico de diferencias
+      - Estimación de importancia de hiperparámetros
+      - Análisis de genotipos y similitud estructural
+      - Visualizaciones de distribución y superficies de respuesta
+      - Análisis de interacciones entre hiperparámetros categóricos y continuos
+    """
+
+    def __init__(
+        self,
+        study: optuna.study.Study,
+        parquet_path: str = "./data/optuna_ga_results.parquet",
+    ):
         self.study = study
         self.parquet_path = parquet_path
-        df_raw = pd.read_parquet(parquet_path)
-        
-        # Limpieza de outliers (Percentil 95) para no sesgar el color del heatmap
-        q_high = df_raw["loss"].quantile(0.95)
-        self.df = df_raw[df_raw["loss"] <= q_high].copy()
-        
+        self.df = pd.read_parquet(parquet_path)
         self.df_avg = self.df[self.df["repeat_index"] == "avg"].copy()
-        self.df_clean = self.df[self.df["repeat_index"] != "avg"].copy()
-        
-        self.cat_cols = ["initialization", "crossover", "mutation", "replacement"]
-        self.num_cols = ["population_size", "tournament_size", "mutation_rate", "elite_size"]
-        self.summary = None
+        self.summary = None  # resumen agregado por trial_number
 
-    # ------------------------- Análisis de Genotipos -------------------------
-    @staticmethod
-    def genotype_to_edges(s):
-        if not s or not isinstance(s, str): return set()
-        s_clean = s.replace('[', '').replace(']', '').replace(',', ' ').strip()
-        if not s_clean: return set()
-        try:
-            perm = np.array([int(x) for x in s_clean.split()], dtype=int)
-        except (ValueError, TypeError):
-            return set()
-        if len(perm) < 2: return set()
-        edges = set()
-        for a, b in zip(perm, np.roll(perm, -1)):
-            edges.add((min(a,b), max(a,b)))
-        return edges
-
-    def genotype_similarity(self, trial_number):
-        rows = self.df_clean[self.df_clean.trial_number == trial_number]
-        if "genotype_summary" not in rows.columns: return np.nan
-        edges_list = [self.genotype_to_edges(s) for s in rows["genotype_summary"] if s]
-        if len(edges_list) < 2: return np.nan
-        sims = []
-        for i in range(len(edges_list)):
-            for j in range(i + 1, len(edges_list)):
-                e1, e2 = edges_list[i], edges_list[j]
-                union_size = len(e1 | e2)
-                # FIX: Solo dividir si la unión no es cero
-                if union_size > 0:
-                    sims.append(len(e1 & e2) / union_size)
-        
-        return np.mean(sims) if sims else np.nan
-
-    # ------------------------- Estadísticas -------------------------
+    # ------------------------- Estadísticas por trial -------------------------
     def summarize_trials(self):
-        group = self.df_clean.groupby("trial_number")
-        summary = group["loss"].agg(["mean", "std", "min", "max"]).reset_index()
-        params = self.df_clean.groupby("trial_number")[self.cat_cols + self.num_cols].first().reset_index()
-        summary = summary.merge(params, on="trial_number", how="left")
-        
+        group = self.df[self.df["repeat_index"] != "avg"].groupby("trial_number")
+        summary = (
+            group["loss"]
+            .agg(["mean", "median", "std", "min", "max", "count"])
+            .reset_index()
+        )
+        params = self.df[self.df["repeat_index"] == 0].set_index("trial_number")[
+            [
+                "population_size",
+                "initialization",
+                "tournament_size",
+                "crossover",
+                "mutation",
+                "replacement",
+                "elite_size",
+                "mutation_rate",
+            ]
+        ]
+        summary = summary.join(params, on="trial_number")
         summary["cv"] = summary["std"] / (summary["mean"] + 1e-12)
-        summary["genotype_sim"] = summary["trial_number"].apply(self.genotype_similarity)
         self.summary = summary
         return summary
 
+    # ------------------------- Top-K y estabilidad -------------------------
+    def top_k_trials(self, k=5, sort_by_cv=False):
+        if self.summary is None:
+            self.summarize_trials()
+        if sort_by_cv:
+            topk = self.summary.sort_values(["mean", "cv"]).head(k)
+        else:
+            topk = self.summary.sort_values("mean").head(k)
+        return topk
+
     # ------------------------- Visualizaciones -------------------------
-    def _apply_style(self, ax, title, x_label, y_label):
-        ax.set_title(title, fontsize=11, color='white', pad=12)
-        ax.set_xlabel(x_label, fontsize=10, color='white')
-        ax.set_ylabel(y_label, fontsize=10, color='white')
-        ax.tick_params(colors='white', labelsize=9)
-        ax.set_facecolor('#1e1e1e')
+    def plot_box_by_category(self, cat_col="crossover", value_col="loss"):
+        plt.figure(figsize=(10, 6))
+        sns.boxplot(
+            data=self.df[self.df["repeat_index"] != "avg"], x=cat_col, y=value_col
+        )
+        plt.title(f"Distribución de {value_col} por {cat_col}")
+        plt.xticks(rotation=45)
+        plt.show()
 
-    def plot_unidimensional_analysis(self):
-        """Impacto individual de cada variable."""
-        all_cols = self.cat_cols + self.num_cols
-        rows = math.ceil(len(all_cols) / 2)
-        with plt.style.context('dark_background'):
-            fig, axes = plt.subplots(rows, 2, figsize=(16, 5 * rows), facecolor='#121212')
-            axes = axes.flatten()
-            for i, col in enumerate(all_cols):
-                if col in self.cat_cols:
-                    sns.boxplot(data=self.df_clean, x=col, y="loss", ax=axes[i], palette="viridis")
-                else:
-                    sns.regplot(data=self.df_clean, x=col, y="loss", ax=axes[i], 
-                                scatter_kws={'alpha':0.4, 's':10}, line_kws={'color':'#ff4b4b'})
-                self._apply_style(axes[i], f"Efecto Directo: {col}", col, "Loss")
-            plt.tight_layout(pad=4.0)
-            plt.show()
+    def plot_heatmap_numeric(
+        self,
+        x_col="population_size",
+        y_col="tournament_size",
+        value_col="loss",
+        aggfunc=np.mean,
+    ):
+        df_heat = self.df_avg.copy()
+        df_heat["x_bin"] = pd.qcut(df_heat[x_col], q=6)
+        pivot = df_heat.pivot_table(
+            index="x_bin", columns=y_col, values=value_col, aggfunc=aggfunc
+        )
+        plt.figure(figsize=(10, 6))
+        sns.heatmap(pivot, annot=True, fmt=".2f")
+        plt.title(f"{value_col} promedio por {x_col} bin / {y_col}")
+        plt.show()
 
-    def plot_interactions_mosaic(self):
-        """Heatmaps de interacciones (Fix de FutureWarnings)."""
-        all_params = self.cat_cols + self.num_cols
-        combos = list(combinations(all_params, 2))
-        cols_grid = 3
-        rows_grid = math.ceil(len(combos) / cols_grid)
-        
-        with plt.style.context('dark_background'):
-            fig, axes = plt.subplots(rows_grid, cols_grid, figsize=(22, 5 * rows_grid), facecolor='#121212')
-            axes = axes.flatten()
-            
-            for i, (p1, p2) in enumerate(combos):
-                df_h = self.df_avg.copy()
-                
-                # Crear bins si la variable es numérica
-                idx_val = pd.qcut(df_h[p1], q=4, duplicates='drop') if p1 in self.num_cols else df_h[p1]
-                col_val = pd.qcut(df_h[p2], q=4, duplicates='drop') if p2 in self.num_cols else df_h[p2]
-                
-                # FIX: aggfunc="mean" (string) y observed=False para evitar warnings
-                pivot = df_h.pivot_table(
-                    index=idx_val, 
-                    columns=col_val, 
-                    values="loss", 
-                    aggfunc="mean",
-                    observed=False 
-                )
-                
-                # Formatear etiquetas de columnas numéricas
-                pivot.columns = [f"{float(c):.2f}" if isinstance(c, (int, float, np.number)) else c for c in pivot.columns]
-                
-                sns.heatmap(pivot, annot=True, cmap="Blues_r", ax=axes[i], cbar_kws={'label': 'Loss'})
-                
-                cbar = axes[i].collections[0].colorbar
-                cbar.ax.yaxis.set_tick_params(color='white', labelcolor='white')
-                self._apply_style(axes[i], f"{p1} vs {p2}", p2, p1)
+    # ------------------------- Test estadístico -------------------------
+    def compare_top_trials(self, top_n=2, test="mannwhitney"):
+        topk = self.top_k_trials(k=top_n)
+        t1 = self.df[
+            (self.df.trial_number == topk.iloc[0].trial_number)
+            & (self.df.repeat_index != "avg")
+        ]
+        t2 = self.df[
+            (self.df.trial_number == topk.iloc[1].trial_number)
+            & (self.df.repeat_index != "avg")
+        ]
 
-            for j in range(i + 1, len(axes)): fig.delaxes(axes[j])
-            plt.tight_layout(pad=5.0)
-            plt.show()
+        if test == "mannwhitney":
+            stat, p_value = stats.mannwhitneyu(
+                t1.loss, t2.loss, alternative="two-sided"
+            )
+        elif test == "wilcoxon":
+            stat, p_value = stats.wilcoxon(t1.loss.values, t2.loss.values)
+        else:
+            raise ValueError("test must be 'mannwhitney' or 'wilcoxon'")
+        return stat, p_value
 
+    # ------------------------- Feature importances -------------------------
     def estimate_param_importance(self):
-        X = self.df_clean[self.cat_cols + self.num_cols]
-        y = self.df_clean["loss"]
-        pipe = Pipeline([
-            ("pre", ColumnTransformer([("cat", OneHotEncoder(handle_unknown="ignore"), self.cat_cols)], remainder="passthrough")),
-            ("rf", RandomForestRegressor(n_estimators=100, random_state=42))
-        ])
-        pipe.fit(X, y)
-        return pd.Series(pipe.named_steps["rf"].feature_importances_, 
-                         index=pipe.named_steps["pre"].get_feature_names_out()).sort_values(ascending=False)
+        df_rep = self.df[self.df.repeat_index != "avg"].copy()
+        cat_cols = ["initialization", "crossover", "mutation", "replacement"]
+        num_cols = ["population_size", "tournament_size", "elite_size", "mutation_rate"]
+        X = df_rep[cat_cols + num_cols]
+        y = df_rep["loss"]
 
-    def run_full_analysis(self):
-        print("=== INICIANDO ANÁLISIS INTEGRAL (SILENT MODE) ===")
-        print(self.summarize_trials())
-        print("\n[1] Ejecutando Análisis Unidimensional...")
-        self.plot_unidimensional_analysis()
-        print("\n[2] Ejecutando Mosaico de Interacciones Completo...")
-        self.plot_interactions_mosaic()
-        print("\n[3] Importancia relativa de parámetros:")
-        print(self.estimate_param_importance().head(10))
+        preprocessor = ColumnTransformer(
+            [
+                ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
+            ],
+            remainder="passthrough",
+        )
+
+        pipe = Pipeline(
+            [
+                ("pre", preprocessor),
+                ("rf", RandomForestRegressor(n_estimators=200, random_state=0)),
+            ]
+        )
+        pipe.fit(X, y)
+        feats = pipe.named_steps["pre"].get_feature_names_out()
+        importances = pipe.named_steps["rf"].feature_importances_
+        imp_df = pd.Series(importances, index=feats).sort_values(ascending=False)
+        return imp_df
+
+    # ------------------------- Genotype analysis -------------------------
+    @staticmethod
+    def genotype_to_edges(s):
+        perm = np.fromstring(s.strip("[]"), sep=" ", dtype=int)
+        edges = set()
+        for a, b in zip(perm, np.roll(perm, -1)):
+            edges.add((min(a, b), max(a, b)))
+        return edges
+
+    def genotype_similarity(self, trial_number):
+        rows = self.df[
+            (self.df.trial_number == trial_number) & (self.df.repeat_index != "avg")
+        ]
+        edges_list = [self.genotype_to_edges(s) for s in rows["genotype_summary"]]
+        n = len(edges_list)
+        if n < 2:
+            return np.nan
+        sims = []
+        for i in range(n):
+            for j in range(i + 1, n):
+                e1, e2 = edges_list[i], edges_list[j]
+                sims.append(len(e1 & e2) / len(e1 | e2))
+        return np.mean(sims)
+
+    # ------------------------- Análisis hiperparámetros -------------------------
+    def analyze_hyperparams(self):
+        """
+        Analiza la influencia de los hiperparámetros sobre el loss:
+          - Ignora repeat_index='avg'
+          - Categóricos: boxplots y mean loss
+          - Continuos: scatter + línea de tendencia, correlación
+          - Interacciones pares: heatmaps, scatter coloreados o boxplots mixtos
+        """
+        df = self.df[self.df["repeat_index"] != "avg"].copy()
+        cat_cols = ["initialization", "crossover", "mutation", "replacement"]
+        num_cols = ["population_size", "tournament_size", "mutation_rate", "elite_size"]
+
+        # ----------- Categóricos -----------
+        print("### Efecto de parámetros categóricos sobre loss ###")
+        for col in cat_cols:
+            plt.figure(figsize=(8, 4))
+            sns.boxplot(data=df, x=col, y="loss")
+            plt.title(f"Distribución de loss según {col}")
+            plt.show()
+            mean_loss = df.groupby(col)["loss"].mean().sort_values()
+            print(f"Promedio de loss por {col}:\n{mean_loss}\n")
+
+        # ----------- Continuos -----------
+        print("### Efecto de parámetros continuos sobre loss ###")
+        for col in num_cols:
+            plt.figure(figsize=(6, 4))
+            sns.scatterplot(data=df, x=col, y="loss", alpha=0.6)
+            sns.regplot(data=df, x=col, y="loss", scatter=False, color="red")
+            plt.title(f"Tendencia de loss según {col}")
+            plt.show()
+            corr = df[col].corr(df["loss"])
+            print(f"Correlación {col} vs loss: {corr:.3f}")
+
+        # ----------- Interacciones de pares -----------
+        print("### Interacciones entre pares de hiperparámetros ###")
+        for i, col1 in enumerate(cat_cols + num_cols):
+            for col2 in (cat_cols + num_cols)[i + 1 :]:
+                if col1 in cat_cols and col2 in cat_cols:
+                    pivot = df.pivot_table(
+                        index=col1, columns=col2, values="loss", aggfunc=np.mean
+                    )
+                    plt.figure(figsize=(8, 5))
+                    sns.heatmap(pivot, annot=True, fmt=".2f", cmap="coolwarm")
+                    plt.title(f"Mean loss: {col1} x {col2}")
+                    plt.show()
+                elif col1 in num_cols and col2 in num_cols:
+                    plt.figure(figsize=(6, 5))
+                    sns.scatterplot(
+                        data=df, x=col1, y=col2, hue="loss", palette="viridis"
+                    )
+                    plt.title(f"Interacción: {col1} vs {col2} (color=loss)")
+                    plt.show()
+                else:
+                    cont, cat = (col1, col2) if col1 in num_cols else (col2, col1)
+                    plt.figure(figsize=(8, 4))
+                    sns.boxplot(data=df, x=cat, y="loss")
+                    sns.scatterplot(
+                        data=df, x=cat, y=cont, hue="loss", palette="viridis", alpha=0.6
+                    )
+                    plt.title(f"Interacción: {cat} (categórico) vs {cont} (continuo)")
+                    plt.show()
