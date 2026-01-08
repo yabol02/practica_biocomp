@@ -713,12 +713,12 @@ def create_tsp_configs() -> List[ExperimentConfig]:
     ]
     selections = [TournamentSelection(tournament_size=3)]
     crossovers = [
-        CycleCrossover(),
+        # CycleCrossover(),
         EdgeRecombinationCrossover(),
         PMXCrossover(),
     ]
     mutations = [
-        SwapMutation(mutation_rate=0.02),
+        # SwapMutation(mutation_rate=0.02),
         InversionMutation(mutation_rate=0.02),
         ScrambleMutation(mutation_rate=0.02),
     ]
@@ -726,7 +726,7 @@ def create_tsp_configs() -> List[ExperimentConfig]:
         ElitistReplacement(elite_size=2),
         MuPlusLambdaReplacement(),
     ]
-    population_sizes = [100, 200, 1000]
+    population_sizes = [100, 200, 500]
 
     config_id = 0
     for init in initializations:

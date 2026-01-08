@@ -34,9 +34,9 @@ def run_experiments():
 
     # Create runner with moderate parallelism
     runner = ExperimentRunner(
-        output_dir="experiments/mono/results/exp_1",
+        output_dir="experiments/mono/results/exp_2",
         max_workers=6,
-        use_processes=False,  # Set to True for faster execution
+        use_processes=True,
     )
 
     # Get first two configurations from each problem
@@ -46,7 +46,7 @@ def run_experiments():
 
     # Running always the same 10 random seeds for reproducibility
     generator = random.Random(0)
-    seeds = [generator.randint(10000000, 99999999) for _ in range(4)]
+    seeds = [generator.randint(10000000, 99999999) for _ in range(3)]
 
     print(f"Running {len(all_configs)} configurations with {len(seeds)} seeds each")
     print(f"Total experiments: {len(all_configs) * len(seeds)}")
