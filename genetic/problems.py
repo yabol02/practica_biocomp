@@ -366,7 +366,9 @@ class MultiObjectiveProblem(Problem):
         :return: Result object
         :rtype: MultiObjectiveResult
         """
-        final_front, final_sols = self.true_pareto_front
+        # Use the incrementally maintained pareto_front instead of recalculating
+        final_front = self.pareto_front
+        final_sols = self.pareto_solutions
 
         metrics = {
             "n_pareto_solutions": len(final_front),
@@ -1017,6 +1019,9 @@ class MOTSProblem(MultiObjectiveProblem):
         :return: Array with [total_distance, total_time]
         :rtype: np.ndarray
         """
+        # Ensure solution is a numpy array
+        solution = np.asarray(solution)
+        
         # If solutions are provided as continuous floats (standard Pymoo), convert to permutation
         if np.isrealobj(solution) and not np.issubdtype(solution.dtype, np.integer):
             tour = np.argsort(solution)
@@ -1046,6 +1051,64 @@ class MOTSProblem(MultiObjectiveProblem):
 
         if len(np.unique(solution)) != self.n_cities:
             raise ValueError("Solution must visit each city exactly once.")
+        
+    # ...existing code...
+
+    def get_bounds(self) -> Tuple[int, int]:
+        """
+        Get bounds for the decision variables.
+        
+        For TSP, solutions are permutations of city indices [0, n_cities-1].
+        
+        :return: Tuple of (min_city_index, max_city_index)
+        :rtype: Tuple[int, int]
+        """
+        return (0, self.n_cities - 1)
+
+    def get_nsga2_result(self):
+        """
+        Run NSGA-II algorithm on this problem for comparison.
+        
+        :return: NSGA-II optimization result
+        """
+        from pymoo.algorithms.moo.nsga2 import NSGA2
+        from pymoo.operators.crossover.ox import OrderCrossover
+        from pymoo.operators.mutation.inversion import InversionMutation
+        from pymoo.operators.sampling.rnd import PermutationRandomSampling
+        from pymoo.optimize import minimize
+        from pymoo.core.problem import Problem
+        
+        # Create a Pymoo-compatible problem wrapper
+        class PymooProblemWrapper(Problem):
+            def __init__(wrapper_self):
+                super().__init__(
+                    n_var=self.n_cities,
+                    n_obj=2,
+                    xl=0,
+                    xu=self.n_cities - 1,
+                )
+                
+            def _evaluate(wrapper_self, X, out, *args, **kwargs):
+                F = np.array([self._fitness_function(x) for x in X])
+                out["F"] = F
+        
+        algorithm = NSGA2(
+            pop_size=100,
+            sampling=PermutationRandomSampling(),
+            crossover=OrderCrossover(),
+            mutation=InversionMutation(),
+        )
+        
+        result = minimize(
+            PymooProblemWrapper(),
+            algorithm,
+            termination=('n_eval', self.config.max_evaluations),
+            seed=self.seed,
+            verbose=False,
+        )
+        
+        return result
+
 
 
 class ElevationMOTSProblem(MultiObjectiveProblem):

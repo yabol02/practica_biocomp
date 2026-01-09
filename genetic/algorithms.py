@@ -340,7 +340,7 @@ class GeneticAlgorithmMO:
         all_objectives = [ind.fitness for ind in population]
         all_solutions = [ind.genotype for ind in population]
         self.problem.update_pareto_front(all_objectives, all_solutions)
-
+        print("returning result ")
         return self.problem.get_result()
 
     def __str__(self) -> str:
