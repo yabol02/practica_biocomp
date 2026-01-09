@@ -251,40 +251,46 @@ Los resultados de optimización se exportan en formato CSV según el tipo de pro
 
 ```
 practica_biocomp/
-├── genetic/                    # Módulo principal de Algoritmos Genéticos
-│   ├── __init__.py             # Inicializa el paquete y facilita imports básicos
-│   ├── algorithms.py           # Implementación de GA mono y multi-objetivo
-│   ├── configurations.py       # Configuración de problemas
-│   ├── crossover.py            # Operadores de cruce
-│   ├── individual.py           # Representación de individuos
-│   ├── initialization.py       # Estrategias de inicialización de población
-│   ├── mutation.py             # Operadores de mutación
-│   ├── population.py           # Clase Population y operaciones
-│   ├── problems.py             # Problemas de optimización
-│   ├── replacement.py          # Estrategias de reemplazo
-│   ├── results.py              # Almacenamiento de resultados
-│   └── selection.py            # Métodos de selección
+├── genetic/                        # Módulo principal de Algoritmos Genéticos
+│   ├── __init__.py                 # Inicializa el paquete y facilita imports básicos
+│   ├── algorithms.py               # Implementación de GA mono y multi-objetivo
+│   ├── configurations.py           # Configuración de problemas
+│   ├── crossover.py                # Operadores de cruce
+│   ├── individual.py               # Representación de individuos
+│   ├── initialization.py           # Estrategias de inicialización de población
+│   ├── mutation.py                 # Operadores de mutación
+│   ├── population.py               # Clase Population y operaciones
+│   ├── problems.py                 # Problemas de optimización
+│   ├── replacement.py              # Estrategias de reemplazo
+│   ├── results.py                  # Almacenamiento de resultados
+│   └── selection.py                # Métodos de selección
+├── genetic/                        # Módulo principal de Algoritmos Genéticos
+│   └── mono        
+│       ├── experiment_runner.py   # Fichero preparado para preparar y lanzar experimentos
+│       ├── analyze_experiments.py # Fichero para generar análisis y visualizaciónd de los resultados
+│       ├── run_and_analyze.py     # Tutorial para ver cómo lanzar experimentos mono-objetivo.
+│       └── README.md              # Explicación del módulo
 │
-├── notebooks/                  # Jupyter Notebooks con experimentos
-│   ├── himmelblau.ipynb        # Optimización de Himmelblau (GA vs PSO vs Scipy)
-│   ├── tsp.ipynb               # TSP con Algoritmo Genético
-│   ├── zdt1.ipynb              # Problema benchmark ZDT1
-│   ├── zdt3.ipynb              # Problema benchmark ZDT3
-│   ├── mw7.ipynb               # Problema benchmark MW7
-│   ├── mw14.ipynb              # Problema benchmark MW14 (si implementado)
-│   └── mo_tsp.ipynb            # TSP Multi-Objetivo (distancia vs tiempo)
+├── notebooks/                      # Jupyter Notebooks con experimentos
+│   ├── himmelblau.ipynb            # Optimización de Himmelblau (GA vs PSO vs Scipy)
+│   ├── tsp.ipynb                   # TSP con Algoritmo Genético
+│   ├── zdt1.ipynb                  # Problema benchmark ZDT1
+│   ├── zdt3.ipynb                  # Problema benchmark ZDT3
+│   ├── mw7.ipynb                   # Problema benchmark MW7
+│   ├── mw14.ipynb                  # Problema benchmark MW14 (si implementado)
+│   └── mo_tsp.ipynb                # TSP Multi-Objetivo (distancia vs tiempo)
 │
-├── diagrams/                   # Diagramas y visualizaciones
-│   └── classes.excalidraw      # Diagrama de arquitectura de clases
+├── diagrams/                       # Diagramas y visualizaciones
+│   └── classes.excalidraw          # Diagrama de arquitectura de clases
 │
-├── aco.py                      # Implementación de ACO para TSP
-├── main.py                     # Script de ejemplo de uso
-├── pyproject.toml              # Configuración del proyecto y dependencias
-├── uv.lock                     # Lock file de dependencias (uv)
-├── .python-version             # Versión de Python requerida
-├── CHANGELOG.md                # Historial de cambios
-├── LICENSE                     # Licencia MIT
-└── README.md                   # Este archivo
+├── aco.py                          # Implementación de ACO para TSP
+├── main.py                         # Script de ejemplo de uso
+├── pyproject.toml                  # Configuración del proyecto y dependencias
+├── uv.lock                         # Lock file de dependencias (uv)
+├── .python-version                 # Versión de Python requerida
+├── CHANGELOG.md                    # Historial de cambios
+├── LICENSE                         # Licencia MIT
+└── README.md                       # Este archivo
 ```
 
 ### Componentes principales
