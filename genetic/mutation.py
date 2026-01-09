@@ -429,3 +429,35 @@ class TwoOptSearchMutation(Mutation):
         # Para minimización: mejora = fitness_actual - fitness_nuevo
         # Si fitness_nuevo < fitness_actual -> mejora positiva
         return current_fitness - new_fitness
+
+
+class CombinedMutation(Mutation):
+    """
+    Mutación combinada que aplica secuencialmente múltiples operadores de mutación.
+    
+    Útil para TSP multiobjetivo donde queremos:
+    - InversionMutation para optimización local (2-opt)
+    - SwapMutation para mantener diversidad
+    """
+
+    def __init__(self, mutations: List[Mutation]):
+        """
+        Initialize combined mutation.
+
+        :param mutations: List of mutation operators to apply sequentially.
+        :type mutations: List[Mutation]
+        """
+        self.mutations = mutations
+
+    def mutate(self, population: Population) -> Population:
+        """
+        Apply all mutations sequentially to population.
+
+        :param population: Population to mutate
+        :type population: Population
+        :return: Mutated population
+        :rtype: Population
+        """
+        for mutation in self.mutations:
+            population = mutation.mutate(population)
+        return population
