@@ -32,37 +32,21 @@
 
 Este repositorio contiene la entrega práctica de la asignatura **Computación Evolutiva y Bioinspirada** del **Máster en Aprendizaje Automático y Datos Masivos**. El objetivo principal es el desarrollo, análisis y comparativa de diferentes algoritmos bioinspirados aplicados a problemas de optimización mono-objetivo y multi-objetivo.
 
+### 📋 Alineación con el enunciado
+
+- Implementación de GA **mono-objetivo** desde cero para Himmelblau y TSP.
+- Implementación de GA **multi-objetivo** desde cero con soporte de dominancia de Pareto.
+- **Comparativas** con PSO, Scipy, ACO y NSGA-II de Pymoo.
+- Uso de **Pymoo** para problemas benchmark (ZDT3, MW7, MW14).
+- **Múltiples ejecuciones** independientes con semillas distintas para reducir ruido estocástico.
+- **Generación de CSV** con formato especificado (historial de convergencia, frentes de Pareto).
+
 ### ✨ Características principales
 
-- **Framework modular de Algoritmos Genéticos** implementado desde cero
-  - Arquitectura orientada a objetos altamente extensible
-  - Soporte completo para problemas mono y multi-objetivo
-  - Operadores genéticos intercambiables (inicialización, selección, cruce, mutación y reemplazo)
-
-- **Problemas de optimización implementados**
-  - **Mono-objetivo**: Himmelblau, TSP clásico
-  - **Multi-objetivo**: ZDT1, ZDT3, MW7, TSP multi-objetivo (distancia + tiempo)
-  - Integración con benchmark problems de Pymoo
-
-- **Sistema completo de experimentación**
-  - Tracking automático de evaluaciones
-  - Exportación de resultados (CSV, gráficas)
-  - Notebooks Jupyter con análisis reproducibles
-  - Comparación con métodos tradicionales (PSO, Scipy, ACO, NSGA-II)
-
-- **Algoritmos multi-objetivo**
-  - Dominancia de Pareto y frentes no-dominados
-  - NSGA-II (Non-dominated Sorting Genetic Algorithm II)
-  - Métricas de calidad (spread, ratio de no-dominancia)
-  - Visualización de frentes de Pareto
-
-### 📚 Contenido del proyecto
-
-El proyecto abarca implementaciones desde cero de:
-* **Algoritmos Genéticos (GA):** Selección, cruce, mutación y reemplazo
-* **Optimización Mono-objetivo:** Función de Himmelblau y Problema del Viajante (TSP)
-* **Optimización Multi-objetivo (MOEA):** Implementación de frentes de Pareto, métricas de diversidad y convergencia (ZDT1, ZDT3, MW7)
-* **Comparativas:** Benchmarking contra PySwarms (PSO), Scipy (métodos clásicos), ACO (mejora respecto de ACO de Pypi, en el propio repositorio) y Pymoo (MOEA)
+- **Framework modular de Algoritmos Genéticos** implementado desde cero con arquitectura orientada a objetos extensible y operadores genéticos intercambiables.
+- **Problemas de optimización**: Himmelblau y TSP (mono-objetivo); ZDT1, ZDT3, MW7 y TSP MO (multi-objetivo). Integración con benchmarks de Pymoo.
+- **Sistema de experimentación**: Tracking de evaluaciones, exportación a CSV, notebooks reproducibles y comparación con PSO, Scipy, ACO y NSGA-II.
+- **Multi-objetivo**: Dominancia de Pareto, NSGA-II, métricas de calidad y visualización de frentes de Pareto.
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
@@ -96,12 +80,10 @@ El proyecto utiliza las siguientes librerías:
 | `numpy` | ≥2.3.5 | Operaciones numéricas y matriciales |
 | `scipy` | ≥1.16.3 | Métodos de optimización tradicionales |
 | `matplotlib` | ≥3.10.8 | Visualización de resultados |
-| `pandas` | ≥2.3.3 | Manipulación de datos y exportación |
-| `pymoo` | ≥0.6.1.6 | Benchmark problems multi-objetivo |
+| `pandas` | ≥2.3.3 | Manipulación de datos y exportación CSV |
+| `pymoo` | ≥0.6.1.6 | Benchmark problems multi-objetivo (ZDT, MW) |
 | `pyswarms` | ≥1.3.0 | Particle Swarm Optimization (PSO) |
-| `noise` | ≥1.2.2 | Generación de ruido Perlin (elevación en MO-TSP) |
-| `tqdm` | ≥4.67.1 | Barras de progreso |
-| `ipykernel` | ≥7.1.0 | Soporte para Jupyter notebooks |
+| `optuna` | ≥4.6.0 | Optimización de hiperparámetros |
 
 > [!TIP]
 > Todas las dependencias se instalan automáticamente con el comando `uv sync`.
@@ -171,21 +153,41 @@ Para explorar los experimentos completos, consulta los notebooks en el directori
 <a id="metodologia-y-experimentos"></a>
 ## 🧪 Metodología y experimentos
 
-Este proyecto implementa y compara diferentes enfoques de optimización bioinspirada para problemas mono-objetivo y multi-objetivo.
+Todos los resultados se obtienen a partir de múltiples ejecuciones independientes con distintas semillas aleatorias, asegurando reproducibilidad y reducción del ruido estocástico inherente a los algoritmos genéticos. Se utilizan presupuestos de evaluaciones fijados por el enunciado para cada problema. Los resultados se analizan mediante estadísticas básicas (media, desviación, mínimos) y gráficos de convergencia y frentes de Pareto. En el módulo [`experiments/`](./experiments/) se encuentra el código para lanzar múltiples experimentos realizando un grid search básico y almacenando resultados, y con [`genetic/optuna.py`](./genetic/optuna.py) se pueden ejecutar experimentos de optimización de hiperparámetros con Optuna para encontrar las mejores combinaciones de operadores y parámetros.
 
 ### Algoritmos implementados
 
 Implementación completa de algoritmos genéticos desde cero en el módulo [`genetic/`](./genetic/) con:
-- **Inicialización**: Aleatoria uniforme para individuos reales y permutaciones
-- **Selección**: Torneo, selección ponderada, selección multi-objetivo (NSGA-II)
+
+- **Inicialización**:
+  - `RandomInitialization`: Aleatoria uniforme para problemas continuos.
+  - `PermutationInitialization`: Permutaciones aleatorias para TSP.
+  - `NeighborInitialization`: Vecino más cercano estocástico, elegido por proporcionar soluciones iniciales de mayor calidad.
+  - `DiverseNNInitialization`: Vecino más cercano diversificado, elegido para maximizar diversidad inicial.
+
+- **Selección**:
+  - `TournamentSelection`: Elegido por su balance entre presión selectiva y diversidad.
+  - `WeightedSelection`: Para escalarización de objetivos.
+  - `ParetoSelection`: Para multi-objetivo, selecciona frentes no-dominados.
+
 - **Operadores de cruce**:
-  - `BlendCrossover`: Para problemas de variable continua (BLX-α)
-  - `OrderCrossover`: Para problemas de permutación (OX)
-  - Soporte estocástico de padres (selección aleatoria vs. secuencial)
+  - `BlendCrossover` (BLX-α): Para problemas continuos, elegido por explorar el espacio entre padres.
+  - `OrderCrossover` (OX): Para permutaciones, preserva el orden relativo de ciudades.
+  - `PMXCrossover`: Elegido por su capacidad de preservar segmentos contiguos.
+  - `CycleCrossover` (CX): Preserva posiciones absolutas de genes.
+  - `EdgeRecombinationCrossover` (ERX): Maximiza aristas de los padres, elegido por su efectividad en TSP.
+
 - **Mutaciones**:
-  - `UniformMutation`: Mutación uniforme para variables reales
-  - `SwapMutation`: Intercambio de genes para permutaciones
-- **Reemplazo**: Elitismo, reemplazo generacional, reemplazo μ+λ (mu+lambda)
+  - `UniformMutation`: Para variables reales, genera diversidad uniforme.
+  - `SwapMutation`: Intercambio de dos genes, mínima disrupción para permutaciones.
+  - `InversionMutation`: Equivalente a 2-opt, elegida por eliminar cruces y mejorar geometría.
+  - `ScrambleMutation`: Baraja un segmento, útil como operador exploratorio.
+  - `CombinedMutation`: Aplica múltiples mutaciones secuencialmente.
+
+- **Reemplazo**:
+  - `GenerationalReplacement`: La descendencia reemplaza completamente a los padres.
+  - `ElitistReplacement`: Elegido para preservar las mejores soluciones encontradas.
+  - `MuPlusLambdaReplacement` (μ+λ): Elegido por combinar explotación y exploración.
 
 ### Problemas de optimización
 
@@ -195,34 +197,30 @@ Implementación completa de algoritmos genéticos desde cero en el módulo [`gen
 - Función analítica: f(x,y) = (x²+y-11)² + (x+y²-7)²
 - Dominio: x,y ∈ [-5, 5]
 - 4 mínimos globales conocidos
-- Métodos de comparación:
-  - PySwarms (Particle Swarm Optimization)
-  - Scipy (L-BFGS-B, SLSQP, Nelder-Mead)
+- **Presupuesto de evaluaciones: 3.500** (según enunciado)
+- Métodos de comparación: PySwarms (PSO), Scipy (L-BFGS-B, SLSQP, Nelder-Mead)
 
 **2. Problema del Viajante (TSP)** (`genetic/problems.py::TSProblem`)
 - Minimización de distancia total del recorrido
 - Representación mediante permutaciones
 - Distancia euclidiana entre ciudades
-- Métodos de comparación:
-  - Algoritmo de la colonia de hormigas (implementación propia en [`aco.py`](./aco.py))
+- **Presupuesto de evaluaciones: 1.000.000** (según enunciado)
+- Métodos de comparación: Algoritmo de la colonia de hormigas (implementación propia en [`aco.py`](./aco.py))
 
 
 #### Optimización multi-objetivo
 
 **1. Problemas benchmark de Pymoo** (`genetic/problems.py::PymooProblem`)
-- **ZDT1**: Problema convexo clásico (2 objetivos, 30 variables)
-- **ZDT3**: Frente de Pareto discontinuo
-- **MW7**: Problema con geometría compleja
-- **MW14**: Problema altamente no lineal con frente de Pareto irregular y con 3 objetivos
+- **ZDT3**: Frente de Pareto discontinuo (2 objetivos, 30 variables) — **Presupuesto: 10.000 evaluaciones**
+- **MW7**: Problema con geometría compleja — **Presupuesto: 10.000 evaluaciones**
+- **MW14**: Problema altamente no lineal con frente irregular y 3 objetivos — **Presupuesto: 10.000 evaluaciones**
 - Disponibilidad de frente de Pareto verdadero para métricas
 
 **2. TSP Multi-Objetivo** (`genetic/problems.py::MOTSProblem`)
 - **Objetivo 1**: Distancia total (Euclidiana)
-- **Objetivo 2**: Tiempo total de viaje
-  - Basado en elevación del terreno (ruido Perlin)
-  - Penalización por subidas (coef. 2.0)
-  - Beneficio por bajadas (coef. 0.5)
+- **Objetivo 2**: Tiempo total de viaje (basado en elevación del terreno con ruido Perlin)
 - Trade-off entre ruta corta vs. ruta rápida
+- **Presupuesto de evaluaciones: 100.000** (según enunciado)
 
 ### Notebooks de experimentación
 
@@ -232,6 +230,21 @@ Los experimentos se encuentran en el directorio `notebooks/`:
 - `zdt1.ipynb`, `zdt3.ipynb`: Problemas benchmark ZDT
 - `mw7.ipynb`, `mw14.ipynb`: Problemas benchmark MW
 - `mo_tsp.ipynb`: TSP multi-objetivo con análisis de Pareto
+
+### Formatos de resultados
+
+Los resultados de optimización se exportan en formato CSV según el tipo de problema:
+
+**Mono-objetivo (TSP, Himmelblau)** — `SingleObjectiveResult.save_csv()`:
+| Columna | Descripción |
+|---------|-------------|
+| `generation` | Número de generación |
+| `min_fitness` | Mejor fitness encontrado hasta esa generación |
+
+**Multi-objetivo (TSP MO, ZDT, MW)** — `MultiObjectiveResult.save_csv()`:
+| Columna | Descripción |
+|---------|-------------|
+| `objective1`, `objective2`, ... | Valores de cada objetivo en el frente de Pareto |
 
 <a id="estructura-del-proyecto"></a>
 ## 🪴 Estructura del proyecto
@@ -276,64 +289,21 @@ practica_biocomp/
 
 ### Componentes principales
 
-#### Módulo `genetic`
-Framework completo y modular para algoritmos genéticos:
+El módulo [`genetic/`](./genetic/) implementa un framework modular de algoritmos genéticos:
 
-- **`Individual`**: Representación abstracta de soluciones con verificación de genotipo por si hay alguno inválido
-  - `RealIndividual`: Individuos con genes de valor real y problemas continuos
-  - `PermutationIndividual`: Individuos con genes de permutación (tipo TSP)
-
-- **`Population`**: Clase que unifica la colección de individuos con operaciones de:
-  - Evaluación de fitness de los individuos
-  - Selección de mejores individuos
-  - Soporte básico para problemas multi-objetivo
-
-- **`Problem`**: Clase base para definir problemas de optimización
-  - `SingleObjectiveProblem`: Problemas con un solo objetivo
-  - `MultiObjectiveProblem`: Problemas con múltiples objetivos
-  - Se definen problemas a partir de estos básicos para poder seguir una interfaz unificada
-  - Sistema de tracking de evaluaciones y historial
-
-- **Operadores genéticos**:
-  - Totalmente intercambiables y configurables
-  - Separación clara de responsabilidades
-  - Fácil extensión para nuevos operadores
-
-- **`ProblemConfig`**: Centraliza parámetros de experimentación
-  - Semillas aleatorias para reproducibilidad
-  - Budget de evaluaciones
-  - Directorio de salida de resultados
-
-- Sistema de resultados para unificar las interfaces
-  - **`SingleObjectiveResult`**: Para problemas mono-objetivo
-  - **`MultiObjectiveResult`**: Para problemas multi-objetivo
-  - Exportación a CSV
-  - Visualización de convergencia/Pareto
-
-- **`GeneticAlgorithmSO`** y **`GeneticAlgorithmMO`**: Cuentan con la lógica principal del algoritmo evolutivo.
-
-### Características avanzadas
-
-- **Reproducibilidad**: Todas las ejecuciones son reproducibles mediante semillas
-- **Extensibilidad**: Arquitectura modular que facilita añadir nuevos problemas y operadores
-- **Performance**: Uso de NumPy para operaciones vectorizadas eficientes
-- **Tracking completo**: Historial de evaluaciones, convergencia y métricas
-- **Visualización**: Gráficas automáticas de convergencia y frentes de Pareto
+- **`Individual`** / **`Population`**: Representación de soluciones (`RealIndividual` para continuos, `PermutationIndividual` para TSP) y colecciones con evaluación de fitness.
+- **`Problem`**: Clase base para problemas (`SingleObjectiveProblem`, `MultiObjectiveProblem`) con tracking de evaluaciones.
+- **`ProblemConfig`**: Centraliza semillas, budget de evaluaciones y directorio de salida.
+- **Operadores**: Intercambiables y configurables (ver sección Metodología para lista completa).
+- **`GeneticAlgorithmSO`** / **`GeneticAlgorithmMO`**: Lógica principal del algoritmo evolutivo mono y multi-objetivo.
+- **`SingleObjectiveResult`** / **`MultiObjectiveResult`**: Exportación a CSV y visualización.
 
 <p align="right">(<a href="#readme-top">Volver arriba</a>)</p>
 
 <a id="ejecucion-del-codigo"></a>
 ## 🐍 Ejecución del código
 
-Los notebooks en [`notebooks/`](./notebooks/) contienen experimentos completos y reproducibles:
-
-**Notebooks disponibles**:
-  - [`himmelblau.ipynb`](./notebooks/himmelblau.ipynb): Comparación GA vs PSO vs métodos tradicionales
-  - [`tsp.ipynb`](./notebooks/tsp.ipynb): Resolución del TSP con GA en diferentes instancias
-  - [`zdt1.ipynb`](./notebooks/zdt1.ipynb), [`zdt3.ipynb`](./notebooks/zdt3.ipynb): Optimización multi-objetivo ZDT
-  - [`mw7.ipynb`](./notebooks/mw7.ipynb), [`mw14.ipynb](./notebooks/mw14.ipynb): Problema MW7 con análisis de Pareto
-  - [`mo_tsp.ipynb`](./notebooks/mo_tsp.ipynb): TSP bi-objetivo (distancia vs tiempo)
-
+Los notebooks en [`notebooks/`](./notebooks/) contienen experimentos completos y reproducibles (ver lista en sección Metodología).
 
 ### Comparación con métodos tradicionales
 
