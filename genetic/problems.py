@@ -366,7 +366,9 @@ class MultiObjectiveProblem(Problem):
         :return: Result object
         :rtype: MultiObjectiveResult
         """
-        final_front, final_sols = self.true_pareto_front
+        # Use the incrementally maintained pareto_front instead of recalculating
+        final_front = self.pareto_front
+        final_sols = self.pareto_solutions
 
         metrics = {
             "n_pareto_solutions": len(final_front),
@@ -1017,6 +1019,9 @@ class MOTSProblem(MultiObjectiveProblem):
         :return: Array with [total_distance, total_time]
         :rtype: np.ndarray
         """
+        # Ensure solution is a numpy array
+        solution = np.asarray(solution)
+        
         # If solutions are provided as continuous floats (standard Pymoo), convert to permutation
         if np.isrealobj(solution) and not np.issubdtype(solution.dtype, np.integer):
             tour = np.argsort(solution)
@@ -1046,6 +1051,101 @@ class MOTSProblem(MultiObjectiveProblem):
 
         if len(np.unique(solution)) != self.n_cities:
             raise ValueError("Solution must visit each city exactly once.")
+
+    def get_bounds(self) -> Tuple[int, int]:
+        """
+        Get bounds for city indices.
+
+        Note: In permutation-based TSP, bounds represent valid city indices
+        rather than continuous variable bounds.
+
+        :return: (min_index, max_index) tuple
+        :rtype: Tuple[int, int]
+        """
+        return (0, self.n_cities - 1)
+
+    def get_nsga2_result(self, pop_size=100, seed=None, verbose=False):
+        pymoo_problem = PymooMOTSPWrapper(self)
+
+        n_gen = self.config.max_evaluations // pop_size
+        algorithm = NSGA2(
+            pop_size=pop_size,
+            sampling=PermutationRandomSampling(),
+            crossover=OrderCrossover(prob=0.9),
+            mutation=InversionMutation(prob=0.2),
+            eliminate_duplicates=True,
+        )
+
+        res = pymoo_minimize(
+            pymoo_problem,
+            algorithm,
+            termination=("n_gen", self.config.max_evaluations//pop_size),
+            seed=seed,
+            verbose=verbose,
+        )
+
+        self.pymoo_objectives = res.F if res.F is not None else np.array([])
+        self.pymoo_solutions = res.X if res.X is not None else np.array([])
+        # self.update_pareto_front(new_objectives=res.F, new_solutions=res.X)
+
+        metrics = {
+            "n_pareto_solutions": len(self.pymoo_objectives),
+            "pareto_spread": (
+                np.mean(np.var(self.pymoo_objectives, axis=0))
+                if self.pymoo_objectives.size > 0
+                else 0.0
+            ),
+            "algorithm": "NSGA-II",
+            "pop_size": pop_size,
+            "n_gen": n_gen,
+        }
+
+        return MultiObjectiveResult(
+            problem_name=self.__class__.__name__,
+            best_fitness=self.pymoo_objectives,
+            best_solution=self.pymoo_solutions,
+            evaluations_used=self.evaluations_count,
+            pareto_front=self.pymoo_objectives,
+            metrics=metrics
+        )
+
+    def plot_pareto_front(
+        self, show_true_front: bool = False, problem_name: str = ""
+    ) -> Scatter:
+        """
+        Plot the obtained Pareto front with distance vs time objectives.
+
+        :param show_true_front: Not applicable for MO-TSP (no analytical front)
+        :type show_true_front: bool
+        :param problem_name: Custom name for the plot title
+        :type problem_name: str
+        :return: Scatter plot object
+        :rtype: Scatter
+        """
+        if not np.any(self.pareto_front):
+            print("No Pareto front available yet.")
+            return None
+
+        pareto = np.asarray(self.pareto_front)
+        problem_name = problem_name if problem_name else "Multi-Objective TSP"
+
+        scatter = Scatter(
+            title=f"{problem_name} - Pareto Front",
+            labels=["Total Distance", "Total Time"],
+            legend=True,
+        )
+        scatter.add(pareto, color="blue", label="Obtained Front")
+
+        if hasattr(self, "pymoo_objectives") and self.pymoo_objectives is not None:
+            scatter.add(
+                self.pymoo_objectives,
+                color="green",
+                label="Pymoo NSGA-II Front",
+                alpha=0.5,
+            )
+
+        return scatter
+
 
 
 class ElevationMOTSProblem(MultiObjectiveProblem):
@@ -1299,7 +1399,7 @@ class ElevationMOTSProblem(MultiObjectiveProblem):
         res = pymoo_minimize(
             pymoo_problem,
             algorithm,
-            termination=("n_gen", self.config.max_generations),
+            termination=("n_gen", self.config.max_evaluations//pop_size),
             seed=seed,
             verbose=verbose,
         )

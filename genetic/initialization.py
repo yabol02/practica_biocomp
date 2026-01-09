@@ -162,7 +162,8 @@ class NeighborInitialization(Initialization):
 
             individuals.append(PermutationIndividual(genotype=genotype, bounds=bounds))
 
-        return Population(individuals, minimize=problem.minimize)
+        multiobjective = isinstance(problem, MultiObjectiveProblem)
+        return Population(individuals, minimize=problem.minimize, multiobjective=multiobjective)
 
 
 class DiverseNNInitialization(Initialization):
@@ -221,4 +222,5 @@ class DiverseNNInitialization(Initialization):
 
             individuals.append(PermutationIndividual(genotype=genotype, bounds=bounds))
 
-        return Population(individuals, minimize=problem.minimize)
+        multiobjective = isinstance(problem, MultiObjectiveProblem)
+        return Population(individuals, minimize=problem.minimize, multiobjective=multiobjective)
