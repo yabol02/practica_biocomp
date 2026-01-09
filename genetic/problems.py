@@ -1132,6 +1132,7 @@ class MOTSProblem(MultiObjectiveProblem):
         scatter = Scatter(
             title=f"{problem_name} - Pareto Front",
             labels=["Total Distance", "Total Time"],
+            legend=True,
         )
         scatter.add(pareto, color="blue", label="Obtained Front")
 
